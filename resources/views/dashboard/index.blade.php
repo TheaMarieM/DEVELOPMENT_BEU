@@ -26,6 +26,35 @@
 
 <div class="p-8 max-w-7xl mx-auto space-y-8">
     
+    <!-- Quick Access Bar -->
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Quick Access:</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                <a href="{{ route('admin.analytics') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg text-sm font-semibold transition-all">
+                    <i class="fa-solid fa-chart-pie text-xs"></i> Analytics Dashboard
+                </a>
+                <a href="{{ route('reports.index') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-sm font-semibold transition-all">
+                    <i class="fa-solid fa-file-lines text-xs"></i> Reports Center
+                </a>
+                <a href="{{ route('admin.activity-logs') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg text-sm font-semibold transition-all">
+                    <i class="fa-solid fa-clock-rotate-left text-xs"></i> Activity Logs
+                </a>
+                <a href="{{ route('incidents.index') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-sm font-semibold transition-all">
+                    <i class="fa-solid fa-list text-xs"></i> All Incidents
+                </a>
+                <a href="{{ route('students.index') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-sm font-semibold transition-all">
+                    <i class="fa-solid fa-users text-xs"></i> Students
+                </a>
+                <a href="{{ route('attendance.index') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-sm font-semibold transition-all">
+                    <i class="fa-solid fa-calendar-check text-xs"></i> Attendance
+                </a>
+            </div>
+        </div>
+    </div>
+
     <!-- Stats Cards -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <!-- At-Risk Students Card -->

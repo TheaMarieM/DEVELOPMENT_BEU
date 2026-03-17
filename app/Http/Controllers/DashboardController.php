@@ -5,62 +5,49 @@ namespace App\Http\Controllers;
 use App\Models\Incident;
 use App\Models\Student;
 use App\Models\InterventionSuggestion;
+use App\Services\AnalyticsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
+    protected AnalyticsService $analyticsService;
+
+    public function __construct(AnalyticsService $analyticsService)
+    {
+        $this->analyticsService = $analyticsService;
+    }
+
     public function index(Request $request)
     {
         $user = Auth::user();
 
-        // Get at-risk students (excessive absences or tardiness)
-        $atRiskStudents = Student::where('status', 'active')
-            ->withCount([
-                'attendanceRecords as absent_count' => function ($query) {
-                    $query->where('status', 'absent')
-                        ->whereYear('date', now()->year);
-                },
-                'attendanceRecords as tardy_count' => function ($query) {
-                    $query->where('status', 'tardy')
-                        ->whereYear('date', now()->year);
-                }
-            ])
-            ->having('absent_count', '>=', 10)
-            ->orHaving('tardy_count', '>=', 15)
-            ->get();
+        // Use cached stats from analytics service
+        $overviewStats = Cache::remember('dashboard_overview', 300, function () {
+            return $this->analyticsService->getOverviewStats();
+        });
 
-        // Get common incidents this quarter
+        // Get at-risk students count from cached stats
+        $atRiskStudentsCount = $overviewStats['at_risk_students'] ?? 0;
+
+        // Get common incidents this quarter (with caching)
         $quarterStart = now()->startOfQuarter();
         $quarterEnd = now()->endOfQuarter();
 
-        $commonIncident = Incident::select('violation_category_id', DB::raw('count(*) as total'))
-            ->whereBetween('incident_date', [$quarterStart, $quarterEnd])
-            ->groupBy('violation_category_id')
-            ->with('category')
-            ->orderBy('total', 'desc')
-            ->first();
-
-        // Analyze which grade levels are most affected
-        $affectedGradeLevels = [];
-        if ($commonIncident) {
-            $affectedGradeLevels = Incident::where('violation_category_id', $commonIncident->violation_category_id)
+        $commonIncident = Cache::remember('common_incident_quarter', 600, function () use ($quarterStart, $quarterEnd) {
+            return Incident::select('violation_category_id', DB::raw('count(*) as total'))
                 ->whereBetween('incident_date', [$quarterStart, $quarterEnd])
-                ->join('incident_students', 'incidents.id', '=', 'incident_students.incident_id')
-                ->join('students', 'incident_students.student_id', '=', 'students.id')
-                ->select('students.grade_level', 'students.section', DB::raw('count(*) as count'))
-                ->groupBy('students.grade_level', 'students.section')
-                ->orderBy('count', 'desc')
-                ->take(3)
-                ->get();
-        }
+                ->groupBy('violation_category_id')
+                ->with('category')
+                ->orderBy('total', 'desc')
+                ->first();
+        });
 
-        // Get pending approvals
-        $pendingApprovals = Incident::where('status', 'pending_approval')
-            ->with(['students', 'category', 'reporter'])
-            ->count();
+        // Get pending approvals count from cached stats
+        $pendingApprovalsCount = $overviewStats['pending_approval'] ?? 0;
 
         // Get recent incidents with filters
         $query = Incident::with(['students', 'category', 'reporter']);
@@ -104,17 +91,24 @@ class DashboardController extends Controller
             ->get();
 
         // Prepare data for view
-        $atRiskStudentsCount = $atRiskStudents->count();
         $mostCommonIncident = $commonIncident?->category;
-        $pendingApprovalsCount = $pendingApprovals;
         $suggestions = $interventionSuggestions;
+
+        // Additional stats for enhanced dashboard
+        $quickStats = [
+            'total_this_month' => $overviewStats['total_incidents_this_month'] ?? 0,
+            'monthly_change' => $overviewStats['monthly_change_percent'] ?? 0,
+            'under_review' => $overviewStats['under_review'] ?? 0,
+            'repeat_offenders' => $overviewStats['repeat_offenders'] ?? 0,
+        ];
 
         return view('dashboard.index', compact(
             'atRiskStudentsCount',
             'mostCommonIncident',
             'pendingApprovalsCount',
             'recentIncidents',
-            'suggestions'
+            'suggestions',
+            'quickStats'
         ));
     }
 }

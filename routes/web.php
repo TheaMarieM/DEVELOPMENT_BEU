@@ -159,4 +159,56 @@ Route::middleware(['auth', 'verified', 'role:adviser'])
         Route::put('/students/{student}', [AdviserController::class, 'updateStudent'])->name('students.update');
     });
 
+// Analytics API Routes (for AJAX charts)
+Route::middleware(['auth', 'verified', 'role:discipline_chair,principal,assistant_principal'])
+    ->prefix('api/analytics')
+    ->name('api.analytics.')
+    ->group(function () {
+        Route::get('/dashboard', [\App\Http\Controllers\AnalyticsController::class, 'dashboard'])->name('dashboard');
+        Route::get('/overview', [\App\Http\Controllers\AnalyticsController::class, 'overview'])->name('overview');
+        Route::get('/trends', [\App\Http\Controllers\AnalyticsController::class, 'trends'])->name('trends');
+        Route::get('/categories', [\App\Http\Controllers\AnalyticsController::class, 'categories'])->name('categories');
+        Route::get('/grade-levels', [\App\Http\Controllers\AnalyticsController::class, 'gradeLevels'])->name('grade-levels');
+        Route::get('/sections', [\App\Http\Controllers\AnalyticsController::class, 'sections'])->name('sections');
+        Route::get('/severity', [\App\Http\Controllers\AnalyticsController::class, 'severity'])->name('severity');
+        Route::get('/top-offenders', [\App\Http\Controllers\AnalyticsController::class, 'topOffenders'])->name('top-offenders');
+        Route::get('/comparative', [\App\Http\Controllers\AnalyticsController::class, 'comparative'])->name('comparative');
+        Route::get('/performance', [\App\Http\Controllers\AnalyticsController::class, 'performance'])->name('performance');
+        Route::post('/clear-cache', [\App\Http\Controllers\AnalyticsController::class, 'clearCache'])->name('clear-cache');
+    });
+
+// Activity Logs (Admin Only)
+Route::middleware(['auth', 'verified', 'role:discipline_chair,principal'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        Route::get('/activity-logs', [\App\Http\Controllers\ActivityLogController::class, 'index'])->name('activity-logs');
+        Route::get('/activity-logs/export', [\App\Http\Controllers\ActivityLogController::class, 'export'])->name('activity-logs.export');
+        Route::get('/activity-logs/recent', [\App\Http\Controllers\ActivityLogController::class, 'recent'])->name('activity-logs.recent');
+        Route::get('/activity-logs/{modelType}/{modelId}', [\App\Http\Controllers\ActivityLogController::class, 'forModel'])->name('activity-logs.model');
+        Route::get('/analytics', [\App\Http\Controllers\AnalyticsController::class, 'index'])->name('analytics');
+    });
+
+// Bulk Actions Routes
+Route::middleware(['auth', 'verified', 'role:discipline_chair,principal'])
+    ->prefix('bulk')
+    ->name('bulk.')
+    ->group(function () {
+        Route::post('/incidents/approve', [\App\Http\Controllers\BulkActionsController::class, 'approveIncidents'])->name('incidents.approve');
+        Route::post('/incidents/archive', [\App\Http\Controllers\BulkActionsController::class, 'archiveIncidents'])->name('incidents.archive');
+        Route::post('/incidents/export', [\App\Http\Controllers\BulkActionsController::class, 'exportIncidents'])->name('incidents.export');
+    });
+
+// Reports Routes (Printable Reports)
+Route::middleware(['auth', 'verified', 'role:discipline_chair,principal,assistant_principal,adviser'])
+    ->prefix('reports')
+    ->name('reports.')
+    ->group(function () {
+        Route::get('/', [\App\Http\Controllers\ReportController::class, 'index'])->name('index');
+        Route::get('/incident/{incident}', [\App\Http\Controllers\ReportController::class, 'incident'])->name('incident');
+        Route::get('/student', [\App\Http\Controllers\ReportController::class, 'studentRecord'])->name('student');
+        Route::get('/monthly', [\App\Http\Controllers\ReportController::class, 'monthlySummary'])->name('monthly');
+        Route::get('/quarterly', [\App\Http\Controllers\ReportController::class, 'quarterlyReport'])->name('quarterly');
+    });
+
 require __DIR__.'/auth.php';

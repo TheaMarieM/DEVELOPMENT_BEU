@@ -221,7 +221,8 @@
     </div>
 
     <!-- Master Incident Log -->
-    <div x-show="activeTab === 'log'" class="bg-white rounded-xl border border-gray-200 card-shadow overflow-hidden animate-fade-in" style="display: none;">
+    <div x-show="activeTab === 'log'" class="bg-white rounded-xl border border-gray-200 card-shadow overflow-hidden animate-fade-in" style="display: none;"
+         x-data="bulkActions()">
         <div class="px-6 py-5 border-b border-gray-100 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
             <div>
                 <h3 class="font-bold text-gray-800">Master Incident Log</h3>
@@ -272,16 +273,35 @@
                 <input type="text" name="search" value="{{ request('search') }}" placeholder="Search by student, case ID, or details..." 
                        class="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-xs focus:ring-1 focus:ring-green-500 outline-none w-full bg-white shadow-sm">
             </form>
-            <button class="px-4 py-2 border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 flex items-center gap-2 ml-4">
-                <i class="fa-solid fa-file-pdf text-red-500"></i>
-                Export
-            </button>
+            <div class="flex items-center gap-2 ml-4">
+                <!-- Bulk Actions (shown when items selected) -->
+                <div x-show="selectedIds.length > 0" class="flex items-center gap-2" x-cloak>
+                    <span class="text-xs text-gray-500 font-medium" x-text="selectedIds.length + ' selected'"></span>
+                    <button @click="bulkExport()" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1">
+                        <i class="fa-solid fa-download"></i> Export
+                    </button>
+                    <button @click="bulkArchive()" class="px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1">
+                        <i class="fa-solid fa-box-archive"></i> Archive
+                    </button>
+                    <button @click="clearSelection()" class="px-2 py-2 text-gray-400 hover:text-gray-600 text-xs">
+                        <i class="fa-solid fa-times"></i>
+                    </button>
+                </div>
+                <!-- Export Button -->
+                <button @click="exportAll()" x-show="selectedIds.length === 0" class="px-4 py-2 border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 flex items-center gap-2">
+                    <i class="fa-solid fa-file-csv text-green-600"></i>
+                    Export CSV
+                </button>
+            </div>
         </div>
 
         <div class="overflow-x-auto">
             <table class="w-full text-left">
                 <thead class="bg-gray-50 border-b border-gray-100">
                     <tr>
+                        <th class="px-4 py-4 w-10">
+                            <input type="checkbox" @change="toggleAll($event)" class="rounded border-gray-300 text-green-600 focus:ring-green-500">
+                        </th>
                         <th class="px-6 py-4 text-[10px] font-bold uppercase text-gray-400 tracking-wider">Case ID</th>
                         <th class="px-6 py-4 text-[10px] font-bold uppercase text-gray-400 tracking-wider">Incident Detail</th>
                         <th class="px-6 py-4 text-[10px] font-bold uppercase text-gray-400 tracking-wider">Parties Involved</th>
@@ -292,7 +312,10 @@
                 </thead>
                 <tbody class="divide-y divide-gray-100 text-sm">
                     @forelse($incidents as $incident)
-                    <tr class="hover:bg-gray-50 transition-colors">
+                    <tr class="hover:bg-gray-50 transition-colors" :class="{ 'bg-green-50': selectedIds.includes({{ $incident->id }}) }">
+                        <td class="px-4 py-4">
+                            <input type="checkbox" value="{{ $incident->id }}" @change="toggleSelection({{ $incident->id }})" :checked="selectedIds.includes({{ $incident->id }})" class="rounded border-gray-300 text-green-600 focus:ring-green-500">
+                        </td>
                         <td class="px-6 py-4 text-gray-500 text-xs font-mono">#INC-{{ now()->year }}-{{ str_pad($incident->id, 3, '0', STR_PAD_LEFT) }}</td>
                         <td class="px-6 py-4">
                             <div class="font-semibold text-gray-800">{{ $incident->category->name ?? 'N/A' }}</div>
@@ -491,6 +514,91 @@ function updateFileName(input) {
     const fileName = input.files[0]?.name;
     if (fileName) {
         document.getElementById('file-name').textContent = fileName;
+    }
+}
+
+// Bulk Actions Manager
+function bulkActions() {
+    return {
+        selectedIds: [],
+        
+        toggleSelection(id) {
+            const index = this.selectedIds.indexOf(id);
+            if (index === -1) {
+                this.selectedIds.push(id);
+            } else {
+                this.selectedIds.splice(index, 1);
+            }
+        },
+        
+        toggleAll(event) {
+            if (event.target.checked) {
+                // Select all visible incidents
+                this.selectedIds = Array.from(document.querySelectorAll('tbody input[type="checkbox"]'))
+                    .map(cb => parseInt(cb.value));
+            } else {
+                this.selectedIds = [];
+            }
+        },
+        
+        clearSelection() {
+            this.selectedIds = [];
+            document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+        },
+        
+        async bulkExport() {
+            if (this.selectedIds.length === 0) return;
+            
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{{ route("bulk.incidents.export") }}';
+            form.innerHTML = `<input type="hidden" name="_token" value="{{ csrf_token() }}">`;
+            this.selectedIds.forEach(id => {
+                form.innerHTML += `<input type="hidden" name="incident_ids[]" value="${id}">`;
+            });
+            document.body.appendChild(form);
+            form.submit();
+        },
+        
+        async bulkArchive() {
+            if (this.selectedIds.length === 0) return;
+            
+            if (!confirm(`Are you sure you want to archive ${this.selectedIds.length} incident(s)?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('{{ route("bulk.incidents.archive") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ incident_ids: this.selectedIds })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(data.message);
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                alert('Failed to archive incidents: ' + error.message);
+            }
+        },
+        
+        exportAll() {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{{ route("bulk.incidents.export") }}';
+            form.innerHTML = `<input type="hidden" name="_token" value="{{ csrf_token() }}">`;
+            document.body.appendChild(form);
+            form.submit();
+        }
     }
 }
 
