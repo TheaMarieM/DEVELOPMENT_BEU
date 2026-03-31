@@ -2,12 +2,33 @@
 
 @section('content')
 <!-- Header -->
-<header class="bg-white border-b border-gray-200 px-8 py-5 sticky top-0 z-40 flex items-center justify-between">
+<header class="bg-white border-b border-gray-200 px-8 py-5 sticky top-0 z-40 flex flex-wrap gap-4 items-center justify-between">
     <div>
         <h2 class="text-xl font-bold text-gray-800">Student Profile</h2>
         <p class="text-xs text-gray-500 font-medium mt-0.5">Comprehensive academic and behavioral record</p>
     </div>
-    <div class="flex gap-3">
+    <div class="flex flex-wrap gap-3 justify-end items-center">
+        <details class="relative">
+            <summary class="list-none px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition-colors cursor-pointer flex items-center gap-2" style="list-style: none;">
+                <i class="fa-solid fa-file-arrow-down"></i>
+                Export Records
+                <i class="fa-solid fa-chevron-down text-[10px] opacity-80"></i>
+            </summary>
+            <div class="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-xl z-20 py-2">
+                <a href="{{ route('reports.student', ['student' => $student->id, 'mode' => 'all']) }}" target="_blank" class="block px-4 py-3 hover:bg-gray-50">
+                    <p class="text-sm font-bold text-gray-800">Export Everything</p>
+                    <p class="text-xs text-gray-500">Incidents and attendance summary</p>
+                </a>
+                <a href="{{ route('reports.student', ['student' => $student->id, 'mode' => 'incidents']) }}" target="_blank" class="block px-4 py-3 hover:bg-gray-50 border-t border-gray-100">
+                    <p class="text-sm font-bold text-gray-800">Incidents Only</p>
+                    <p class="text-xs text-gray-500">Detailed incident record</p>
+                </a>
+                <a href="{{ route('reports.attendance', ['student' => $student->id]) }}" target="_blank" class="block px-4 py-3 hover:bg-gray-50 border-t border-gray-100">
+                    <p class="text-sm font-bold text-gray-800">Attendance Only</p>
+                    <p class="text-xs text-gray-500">Attendance log snapshot</p>
+                </a>
+            </div>
+        </details>
         <a href="{{ route('students.index') }}" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors">
             <i class="fa-solid fa-arrow-left mr-2"></i> Back to List
         </a>
@@ -17,52 +38,49 @@
 <div class="p-8 max-w-7xl mx-auto">
     
     <!-- Profile Card -->
-    <div class="bg-white rounded-xl border border-gray-200 card-shadow overflow-hidden mb-8">
-        <div class="bg-green-900 h-24 relative">
-             <div class="absolute -bottom-10 left-8">
-                <div class="w-24 h-24 rounded-full border-4 border-white bg-gray-100 flex items-center justify-center text-3xl font-bold text-gray-600 shadow-md">
+    <div class="bg-white rounded-2xl border border-gray-200 card-shadow p-6 mb-8">
+        <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div class="flex items-start gap-5">
+                <div class="w-20 h-20 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-center text-3xl font-bold text-gray-600">
                     {{ substr($student->first_name, 0, 1) }}
                 </div>
-            </div>
-        </div>
-        <div class="pt-12 pb-6 px-8">
-            <div class="flex justify-between items-start">
                 <div>
-                    <h1 class="text-2xl font-bold text-gray-900">{{ $student->first_name }} {{ $student->middle_name }} {{ $student->last_name }}</h1>
-                    <p class="text-sm text-gray-500 font-medium mb-4">ID: {{ $student->student_id }} <span class="mx-2">•</span> Grade {{ $student->grade_level }} - {{ $student->section }}</p>
-                    
-                    <div class="flex gap-6 mt-4">
-                        <div class="text-xs">
+                    <p class="text-[11px] font-bold text-gray-400 uppercase tracking-[0.3em]">Student Record</p>
+                    <h1 class="text-2xl font-bold text-gray-900 mt-1">{{ $student->first_name }} {{ $student->middle_name }} {{ $student->last_name }}</h1>
+                    <p class="text-sm text-gray-500 font-medium mt-1">
+                        ID: {{ $student->student_id }} <span class="mx-2">•</span> Grade {{ $student->grade_level }} - {{ $student->section }}
+                    </p>
+                    <div class="flex flex-wrap gap-6 mt-4 text-xs">
+                        <div>
                             <span class="block text-gray-400 font-bold uppercase tracking-wider mb-1">Status</span>
-                            <span class="bg-green-100 text-green-800 px-2 py-0.5 rounded font-bold uppercase">{{ $student->status }}</span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold uppercase">{{ $student->status }}</span>
                         </div>
-                        <div class="text-xs">
+                        <div>
                             <span class="block text-gray-400 font-bold uppercase tracking-wider mb-1">Gender</span>
                             <span class="text-gray-700 font-semibold capitalize">{{ $student->gender }}</span>
                         </div>
-                        <div class="text-xs">
+                        <div>
                             <span class="block text-gray-400 font-bold uppercase tracking-wider mb-1">Date of Birth</span>
                             <span class="text-gray-700 font-semibold">{{ $student->date_of_birth ? $student->date_of_birth->format('M d, Y') : 'N/A' }}</span>
                         </div>
                     </div>
                 </div>
-                
-                <div class="bg-gray-50 rounded-lg p-4 border border-gray-100 w-72">
-                    <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Class Adviser</p>
-                    @if($student->adviser)
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs">
-                                {{ substr($student->adviser->first_name, 0, 1) }}
-                            </div>
-                            <div>
-                                <p class="text-sm font-bold text-gray-800">{{ $student->adviser->name }}</p>
-                                <p class="text-xs text-blue-600">{{ $student->adviser->email }}</p>
-                            </div>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-5 border border-gray-100 w-full lg:w-80">
+                <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Class Adviser</p>
+                @if($student->adviser)
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">
+                            {{ substr($student->adviser->first_name, 0, 1) }}
                         </div>
-                    @else
-                        <p class="text-sm text-gray-400 italic">No adviser assigned</p>
-                    @endif
-                </div>
+                        <div>
+                            <p class="text-sm font-bold text-gray-900">{{ $student->adviser->name }}</p>
+                            <p class="text-xs text-blue-600">{{ $student->adviser->email }}</p>
+                        </div>
+                    </div>
+                @else
+                    <p class="text-sm text-gray-400 italic">No adviser assigned</p>
+                @endif
             </div>
         </div>
     </div>

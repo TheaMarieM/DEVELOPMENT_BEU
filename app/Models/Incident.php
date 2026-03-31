@@ -18,6 +18,7 @@ class Incident extends Model
         'reported_by',
         'violation_category_id',
         'violation_clause_id',
+        'custom_violation_description',
         'status',
         'non_student_participant',
         'is_parent_notified',

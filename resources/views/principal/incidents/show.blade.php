@@ -129,7 +129,7 @@
             <div>
                 <label class="block font-bold text-sm text-gray-800 mb-1">Deviation Clause: <span class="font-normal text-gray-500 italic">(Student Handbook)</span></label>
                 <div class="w-full p-3 bg-gray-50 border-b border-gray-300 text-sm text-gray-800 italic">
-                    {{ $incident->clause->description ?? 'No clause has been mapped to this violation.' }}
+                    {{ $incident->custom_violation_description ?? $incident->clause->description ?? 'No clause has been mapped to this violation.' }}
                 </div>
             </div>
 

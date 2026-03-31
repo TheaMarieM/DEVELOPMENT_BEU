@@ -2,20 +2,59 @@
 
 @section('content')
 <!-- Header -->
-<header class="bg-white border-b border-gray-200 px-8 py-5 sticky top-0 z-40">
-    <div class="flex justify-between items-center">
+<header class="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-40">
+    <div class="px-8 py-4 flex flex-wrap items-center justify-between gap-4">
         <div>
-            <h2 class="text-xl font-bold text-gray-800">Incident Details & Management</h2>
-            <p class="text-xs text-gray-500 font-medium mt-0.5">
-                <span class="font-mono font-bold">{{ $incident->incident_number }}</span> 
-                • {{ $incident->incident_date->format('M d, Y h:i A') }}
+            <p class="text-[11px] uppercase tracking-[0.35em] text-gray-400">Incident {{ $incident->incident_number }}</p>
+            <h2 class="text-2xl font-black text-gray-900">Incident Details &amp; Management</h2>
+            <p class="text-sm text-gray-500 mt-1 flex items-center gap-2">
+                <i class="fa-regular fa-clock text-gray-400"></i> {{ $incident->incident_date->format('M d, Y h:i A') }}
             </p>
         </div>
-        <a href="{{ route('incidents.index') }}" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition font-medium text-sm">
-            <i class="fa-solid fa-arrow-left mr-2"></i> Back to Logs
-        </a>
+        <div class="flex flex-wrap items-center gap-3">
+            @php
+                $statusBadge = match($incident->status) {
+                    'reported' => ['Reported', 'bg-blue-50 text-blue-700 border-blue-100', 'fa-clipboard'],
+                    'under_review' => ['For Revision', 'bg-yellow-50 text-yellow-700 border-yellow-100', 'fa-rotate-left'],
+                    'pending_approval' => ['Pending Approval', 'bg-amber-50 text-amber-700 border-amber-100', 'fa-hourglass-end'],
+                    'approved' => ['Approved', 'bg-emerald-50 text-emerald-700 border-emerald-100', 'fa-circle-check'],
+                    'closed' => ['Closed', 'bg-gray-50 text-gray-700 border-gray-100', 'fa-folder-closed'],
+                    default => ['Filed', 'bg-gray-50 text-gray-700 border-gray-100', 'fa-file'],
+                };
+            @endphp
+            <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold border {{ $statusBadge[1] }} uppercase tracking-wide">
+                <i class="fa-solid {{ $statusBadge[2] }} text-[11px]"></i> {{ $statusBadge[0] }}
+            </span>
+            <a href="{{ route('incidents.index') }}" class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 hover:bg-gray-50 transition flex items-center gap-2">
+                <i class="fa-solid fa-arrow-left"></i> Back to Logs
+            </a>
+        </div>
     </div>
 </header>
+
+@php
+    $summaryCards = [
+        ['label' => 'Location', 'value' => $incident->location ?? 'Not set', 'icon' => 'fa-location-dot'],
+        ['label' => 'Reported By', 'value' => $incident->reporter->name ?? 'N/A', 'icon' => 'fa-user-shield'],
+        ['label' => 'Students Involved', 'value' => $incident->students->count(), 'icon' => 'fa-users'],
+        ['label' => 'Last Updated', 'value' => $incident->updated_at->diffForHumans(), 'icon' => 'fa-clock-rotate-left'],
+    ];
+@endphp
+<div class="bg-gray-50 border-b border-gray-200 px-8 py-3">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+        @foreach($summaryCards as $card)
+            <div class="p-3 rounded-2xl bg-white border border-gray-100 shadow-sm flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-gray-100 text-gray-600 flex items-center justify-center">
+                    <i class="fa-solid {{ $card['icon'] }} text-base"></i>
+                </span>
+                <div>
+                    <p class="text-[10px] uppercase tracking-[0.3em] text-gray-400">{{ $card['label'] }}</p>
+                    <p class="text-base font-semibold text-gray-900 mt-1">{{ $card['value'] }}</p>
+                </div>
+            </div>
+        @endforeach
+    </div>
+</div>
 
 <div class="p-8 max-w-7xl mx-auto">
     <!-- Status Alert -->
@@ -40,30 +79,8 @@
         </div>
     @endif
 
-    <!-- Status Badge -->
-    <div class="mb-8">
-        @if($incident->status === 'reported')
-            <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-blue-50 text-blue-700 border border-blue-200 uppercase">
-                <i class="fa-solid fa-clipboard mr-2"></i> Reported
-            </span>
-        @elseif($incident->status === 'under_review')
-            <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-yellow-50 text-yellow-700 border border-yellow-200 uppercase">
-                <i class="fa-solid fa-rotate-left mr-2"></i> For Revision
-            </span>
-        @elseif($incident->status === 'pending_approval')
-            <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-orange-50 text-orange-700 border border-orange-200 uppercase">
-                <i class="fa-solid fa-hourglass-end mr-2"></i> Pending Approval
-            </span>
-        @elseif($incident->status === 'approved')
-            <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-green-50 text-green-700 border border-green-200 uppercase">
-                <i class="fa-solid fa-circle-check mr-2"></i> Approved
-            </span>
-        @elseif($incident->status === 'closed')
-            <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-gray-50 text-gray-700 border border-gray-200 uppercase">
-                <i class="fa-solid fa-folder-closed mr-2"></i> Closed
-            </span>
-        @endif
-    </div>
+    <!-- Spacer for header summary -->
+    <div class="mb-4"></div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Main Content -->
@@ -265,40 +282,46 @@
         </div>
 
         <!-- Sidebar Actions -->
-        <div class="space-y-6">
+        <div class="space-y-6 lg:sticky lg:top-24 self-start">
             
             <!-- Quick Actions -->
-            <div class="bg-white rounded-xl border border-gray-200 card-shadow p-8">
-                <h3 class="text-sm font-bold text-gray-800 mb-4 uppercase tracking-wider">Actions</h3>
+            <div class="bg-white rounded-xl border border-gray-200 card-shadow p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wider">Actions</h3>
+                        <p class="text-xs text-gray-500">Manage this record</p>
+                    </div>
+                    <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Workflow</span>
+                </div>
                 
-                <div class="space-y-3">
+                <div class="space-y-2">
                     @if($incident->status === 'under_review')
                     <button onclick="document.getElementById('edit-incident-form').style.display = 'flex'" 
-                            class="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm transition flex items-center justify-center gap-2">
+                            class="w-full px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-semibold text-sm transition flex items-center justify-center gap-2">
                         <i class="fa-solid fa-pen-to-square"></i> Edit Incident
                     </button>
                     
                     <a href="{{ route('incidents.summary-report', $incident) }}" 
-                            class="w-full px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium text-sm transition flex items-center justify-center gap-2 leading-tight">
+                            class="w-full px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-semibold text-sm transition flex items-center justify-center gap-2 leading-tight">
                         <i class="fa-solid fa-file-pen"></i> Edit Summary Report
                     </a>
                     @elseif($incident->status !== 'approved' && $incident->status !== 'closed')
                     <button onclick="document.getElementById('edit-incident-form').style.display = 'flex'" 
-                            class="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm transition flex items-center justify-center gap-2">
+                            class="w-full px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-semibold text-sm transition flex items-center justify-center gap-2">
                         <i class="fa-solid fa-pen-to-square"></i> Edit Incident
                     </button>
                     @endif
                     
                     @if($incident->status === 'reported')
                     <a href="{{ route('incidents.summary-report', $incident) }}" 
-                            class="w-full px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium text-sm transition flex items-center justify-center gap-2 leading-tight">
+                            class="w-full px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-sm transition flex items-center justify-center gap-2 leading-tight">
                         <i class="fa-solid fa-file-invoice"></i> Create Summary Report
                     </a>
                     @endif
 
                     @if(in_array($incident->status, ['pending_approval', 'approved', 'closed']))
                     <a href="{{ route('incidents.summary-report', $incident) }}" 
-                       class="w-full px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium text-sm transition flex items-center justify-center gap-2 leading-tight">
+                       class="w-full px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-sm transition flex items-center justify-center gap-2 leading-tight">
                         <i class="fa-solid fa-file-contract"></i> View Summary Report
                     </a>
                     @endif
@@ -307,7 +330,7 @@
                     <form action="{{ route('incidents.archive', $incident) }}" method="POST" class="w-full">
                         @csrf
                         <button type="submit" onclick="return confirm('Archive this incident? It will be moved to closed status.')"
-                                class="w-full px-4 py-2.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium text-sm transition flex items-center justify-center gap-2">
+                                class="w-full px-4 py-2.5 bg-gray-800 hover:bg-gray-900 text-white rounded-lg font-semibold text-sm transition flex items-center justify-center gap-2">
                             <i class="fa-solid fa-folder-closed"></i> Archive Record
                         </button>
                     </form>
@@ -316,7 +339,7 @@
             </div>
 
             <!-- Incident Meta -->
-            <div class="bg-white rounded-xl border border-gray-200 card-shadow p-8">
+            <div class="bg-white rounded-xl border border-gray-200 card-shadow p-6">
                 <h3 class="text-sm font-bold text-gray-800 mb-4 uppercase tracking-wider">Details</h3>
                 
                 <div class="space-y-4 text-sm">
@@ -343,7 +366,7 @@
             </div>
 
             <!-- Related Links -->
-            <div class="bg-white rounded-xl border border-gray-200 card-shadow p-8">
+            <div class="bg-white rounded-xl border border-gray-200 card-shadow p-6">
                 <h3 class="text-sm font-bold text-gray-800 mb-4 uppercase tracking-wider">Navigate</h3>
                 
                 <div class="space-y-2">

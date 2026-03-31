@@ -17,6 +17,8 @@ class InterventionSuggestion extends Model
         'analysis_period_start',
         'analysis_period_end',
         'suggestion',
+        'assigned_to',
+        'assignment_due_at',
         'status',
         'decided_by',
         'decided_at',
@@ -27,6 +29,7 @@ class InterventionSuggestion extends Model
         'analysis_period_start' => 'date',
         'analysis_period_end' => 'date',
         'decided_at' => 'datetime',
+        'assignment_due_at' => 'date',
     ];
 
     public function decisionMaker()

@@ -6,6 +6,7 @@ use App\Models\Student;
 use App\Models\ParentModel;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 
 class StudentController extends Controller
@@ -111,5 +112,65 @@ class StudentController extends Controller
 
         return redirect()->route('students.show', $student)
             ->with('success', 'Student updated successfully.');
+    }
+
+    /**
+     * Quick student lookup for dashboard search
+     */
+    public function search(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'query' => 'required|string|min:2',
+        ]);
+
+        $term = trim($validated['query']);
+        $currentYear = now()->year;
+
+        $students = Student::query()
+            ->where('status', 'active')
+            ->where(function ($query) use ($term) {
+                $query->where('first_name', 'like', "%{$term}%")
+                    ->orWhere('last_name', 'like', "%{$term}%")
+                    ->orWhere('student_id', 'like', "%{$term}%");
+            })
+            ->withCount([
+                'incidents as incidents_count' => function ($query) use ($currentYear) {
+                    $query->whereYear('incident_date', $currentYear);
+                },
+                'attendanceRecords as absent_count' => function ($query) use ($currentYear) {
+                    $query->where('status', 'absent')->whereYear('date', $currentYear);
+                },
+                'attendanceRecords as tardy_count' => function ($query) use ($currentYear) {
+                    $query->where('status', 'tardy')->whereYear('date', $currentYear);
+                },
+            ])
+            ->orderBy('last_name')
+            ->limit(8)
+            ->get();
+
+        $results = $students->map(function (Student $student) {
+            return [
+                'id' => $student->id,
+                'name' => $student->full_name,
+                'student_id' => $student->student_id,
+                'grade_level' => $student->grade_level,
+                'section' => $student->section,
+                'incidents' => $student->incidents_count ?? 0,
+                'absent_days' => $student->absent_count ?? 0,
+                'tardy_days' => $student->tardy_count ?? 0,
+                'status' => $student->status,
+                'routes' => [
+                    'view' => route('students.show', $student),
+                    'add_incident' => route('incidents.create', ['student_id' => $student->id]),
+                    'add_attendance' => route('attendance.index', ['student_id' => $student->id]),
+                    'export_record' => route('reports.student', ['student' => $student->id]),
+                    'export_attendance' => route('reports.attendance', ['student' => $student->id]),
+                ],
+            ];
+        });
+
+        return response()->json([
+            'data' => $results,
+        ]);
     }
 }

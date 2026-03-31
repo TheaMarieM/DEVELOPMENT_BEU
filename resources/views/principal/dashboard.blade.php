@@ -85,6 +85,127 @@
         </div>
     </section>
 
+    <section class="bg-white border-2 border-green-100 rounded-3xl shadow-xl p-8 space-y-6">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <div>
+                <p class="text-xs font-bold text-green-600 uppercase tracking-[0.35em]">Coordinated Interventions</p>
+                <h2 class="text-2xl font-black text-gray-900 mt-1">Apply or monitor support plans</h2>
+                <p class="text-xs text-gray-500 mt-1">Actions here sync with the discipline chair and advisers instantly.</p>
+            </div>
+            <span class="inline-flex items-center gap-2 text-[11px] font-extrabold px-4 py-1.5 rounded-full {{ $suggestionsSource === 'analytics' ? 'bg-slate-900 text-white' : ($suggestionsSource === 'manual' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-gray-100 text-gray-600 border border-gray-200') }}">
+                <i class="fa-solid fa-wave-square"></i>
+                {{ ucfirst($suggestionsSource) }} feed
+            </span>
+        </div>
+
+        <div class="grid gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+            <div class="space-y-4">
+                @if($suggestionsSource === 'none')
+                    <div class="border border-dashed border-green-200 rounded-2xl p-6 text-center bg-green-50/50">
+                        <p class="text-sm font-semibold text-gray-700">No pending insights.</p>
+                        <p class="text-xs text-gray-500 mt-1">Once the discipline office submits a plan, it will appear here.</p>
+                    </div>
+                @else
+                    @foreach($suggestions as $suggestion)
+                        @php
+                            $persisted = isset($suggestion->id);
+                            $gradeLevel = data_get($suggestion, 'grade_level');
+                            $sectionValue = data_get($suggestion, 'section');
+                            $scopeLabel = data_get($suggestion, 'scope_label');
+                            $contextLabel = $scopeLabel ?: ($gradeLevel ? 'Grade ' . $gradeLevel : 'All Grade Levels');
+                            if (!$scopeLabel && $sectionValue) {
+                                $contextLabel .= ' · Section ' . $sectionValue;
+                            }
+                            $incidentLabel = data_get($suggestion, 'incident_type', 'Behavioral Trend');
+                            $eventCount = data_get($suggestion, 'incident_count', 0);
+                            $assignmentOwner = data_get($suggestion, 'assigned_to');
+                            $assignmentDue = data_get($suggestion, 'assignment_due_at');
+                            $assignmentDueLabel = $assignmentDue ? \Illuminate\Support\Carbon::parse($assignmentDue)->format('M d, Y') : null;
+                        @endphp
+                        <article class="border border-green-100 rounded-2xl p-5 bg-gradient-to-br from-white to-green-50/20">
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <p class="text-[11px] font-bold uppercase tracking-[0.35em] text-green-600">{{ $contextLabel }}</p>
+                                    <h3 class="text-lg font-black text-gray-900 mt-1">{{ $incidentLabel }}</h3>
+                                    <p class="text-xs text-gray-500 font-semibold">{{ $eventCount }} flagged events · updated {{ now()->format('M') }}</p>
+                                </div>
+                                <span class="inline-flex items-center gap-1.5 text-[11px] font-black px-2.5 py-1 rounded-full {{ $persisted ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-slate-900 text-white' }}">
+                                    <i class="fa-solid {{ $persisted ? 'fa-clipboard-check' : 'fa-wand-magic-sparkles' }} text-[10px]"></i>
+                                    {{ $persisted ? 'Workflow Ready' : 'Auto Insight' }}
+                                </span>
+                            </div>
+                            <p class="text-sm text-gray-700 leading-relaxed mt-3">{{ $suggestion->suggestion }}</p>
+
+                            @if($persisted)
+                                <div class="mt-3 flex flex-wrap gap-4 text-[11px] font-semibold text-gray-500">
+                                    <span class="inline-flex items-center gap-1"><i class="fa-solid fa-user-tag text-green-500 text-[10px]"></i> Owner: {{ $assignmentOwner ?? 'Not assigned' }}</span>
+                                    <span class="inline-flex items-center gap-1"><i class="fa-solid fa-calendar-day text-green-500 text-[10px]"></i> Due: {{ $assignmentDueLabel ?? 'Not set' }}</span>
+                                </div>
+                                <form method="POST" action="{{ route('interventions.decide', $suggestion) }}" class="mt-4 space-y-3">
+                                    @csrf
+                                    <input type="text" name="remarks" placeholder="Optional note for advisers" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-600 focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                    <div class="flex flex-wrap gap-2">
+                                        <button type="submit" name="decision" value="apply" class="px-4 py-2 rounded-xl bg-green-700 text-white text-xs font-black inline-flex items-center gap-2 hover:bg-green-800 transition">
+                                            <i class="fa-solid fa-circle-check text-[10px]"></i>
+                                            Apply Plan
+                                        </button>
+                                        <button type="submit" name="decision" value="dismiss" class="px-4 py-2 rounded-xl border border-gray-300 text-gray-600 text-xs font-black inline-flex items-center gap-2 hover:bg-gray-50 transition">
+                                            <i class="fa-solid fa-ban text-[10px]"></i>
+                                            Dismiss
+                                        </button>
+                                    </div>
+                                </form>
+                            @else
+                                <p class="mt-4 text-xs text-gray-500 italic font-semibold">Auto generated – ask the discipline chair to formalize it if action is required.</p>
+                            @endif
+                        </article>
+                    @endforeach
+                @endif
+            </div>
+
+            <div class="border border-green-100 rounded-2xl p-6 bg-white shadow">
+                <p class="text-xs font-bold text-gray-500 uppercase tracking-[0.35em]">Plan History</p>
+                <h3 class="text-lg font-black text-gray-900 mt-1">Leadership Timeline</h3>
+                <div class="mt-4 space-y-4">
+                    @forelse($recentPlans as $plan)
+                        @php
+                            $palette = [
+                                'implemented' => 'bg-green-50 text-green-800 border border-green-200',
+                                'approved' => 'bg-blue-50 text-blue-800 border border-blue-200',
+                                'rejected' => 'bg-rose-50 text-rose-800 border border-rose-200',
+                            ];
+                            $badgeClass = $palette[$plan->status] ?? 'bg-gray-100 text-gray-700 border border-gray-200';
+                        @endphp
+                        <div class="relative pl-5">
+                            <span class="absolute left-0 top-2 w-2 h-2 rounded-full bg-green-500"></span>
+                            <div class="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div>
+                                        <p class="text-sm font-black text-gray-900">{{ $plan->incident_type }}</p>
+                                        <p class="text-xs text-gray-500">{{ $plan->grade_level ? 'Grade ' . $plan->grade_level : 'All Grades' }}@if($plan->section) · Section {{ $plan->section }} @endif</p>
+                                    </div>
+                                    <span class="text-[11px] font-bold px-2.5 py-1 rounded-full {{ $badgeClass }}">{{ ucfirst($plan->status) }}</span>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-2">{{ optional($plan->decisionMaker)->name ?? 'Discipline Office' }} &middot; {{ optional($plan->decided_at)->diffForHumans() ?? 'N/A' }}</p>
+                                @if($plan->assigned_to || $plan->assignment_due_at)
+                                    <p class="text-[11px] text-gray-500 mt-1">Owner: {{ $plan->assigned_to ?? 'Unassigned' }} @if($plan->assignment_due_at) • Due {{ $plan->assignment_due_at->format('M d, Y') }} @endif</p>
+                                @endif
+                                @if($plan->decision_remarks)
+                                    <p class="text-xs text-gray-600 italic mt-2">“{{ $plan->decision_remarks }}”</p>
+                                @endif
+                            </div>
+                        </div>
+                    @empty
+                        <div class="p-5 border border-dashed border-gray-200 rounded-2xl text-center">
+                            <p class="text-sm font-semibold text-gray-700">No plan decisions logged yet.</p>
+                            <p class="text-xs text-gray-500 mt-1">When a plan is applied, details will appear here for quick reference.</p>
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+    </section>
+
     <section class="bg-white border-2 border-gray-200 rounded-2xl overflow-hidden shadow-xl" id="incidents-overview">
         <div class="px-7 py-6 bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-200 flex flex-wrap gap-3 justify-between items-center">
             <div>

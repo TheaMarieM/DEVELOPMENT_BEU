@@ -15,7 +15,20 @@
         </div>
     </header>
 
-    <div class="p-8 max-w-5xl mx-auto pb-20">
+    <div class="p-8 max-w-5xl mx-auto pb-20 space-y-6">
+        @if(!empty($selectedStudent))
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <p class="text-[11px] font-bold text-emerald-600 uppercase tracking-widest">Logging for student</p>
+                    <h3 class="text-xl font-black text-gray-900">{{ $selectedStudent->full_name }}</h3>
+                    <p class="text-sm text-gray-600 mt-1">ID: {{ $selectedStudent->student_id }} • Grade {{ $selectedStudent->grade_level }} - {{ $selectedStudent->section }}</p>
+                </div>
+                <a href="{{ route('students.show', $selectedStudent) }}" class="text-sm font-bold text-emerald-700 hover:text-emerald-900 inline-flex items-center gap-1">
+                    View student profile <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+                </a>
+            </div>
+        @endif
+
         <form action="{{ route('incidents.store') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
             @csrf
 
@@ -48,33 +61,53 @@
                         <x-input-error :messages="$errors->get('description')" class="mt-2" />
                     </div>
 
-                    <!-- Violation Category -->
-                    <div>
-                        <x-input-label for="violation_category_id" value="Violation Category" />
-                        <select id="violation_category_id" name="violation_category_id" class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-green-500">
-                            <option value="">Select Category</option>
-                            @foreach($categories as $category)
-                                <option value="{{ $category->id }}" {{ old('violation_category_id') == $category->id ? 'selected' : '' }}>
-                                    {{ $category->name }} ({{ $category->severity_level }})
-                                </option>
+                    <!-- Violation Selection -->
+                    <div class="md:col-span-2">
+                        <x-input-label for="violation_clause_id" value="Violation (Standardized)" />
+                        <input type="hidden" name="is_custom_violation" id="full-custom-flag" value="{{ old('is_custom_violation', 0) }}">
+                        <select id="violation_clause_id" name="violation_clause_id" class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-green-500">
+                            <option value="">Select a violation...</option>
+                            @foreach($violationCategories as $category)
+                                @if($category->clauses->isNotEmpty())
+                                    <optgroup label="{{ $category->name }} • {{ ucfirst($category->severity) }}">
+                                        @foreach($category->clauses as $clause)
+                                            <option value="{{ $clause->id }}" {{ old('violation_clause_id') == $clause->id ? 'selected' : '' }}>
+                                                {{ $clause->clause_number }} — {{ $clause->description }}
+                                            </option>
+                                        @endforeach
+                                    </optgroup>
+                                @endif
                             @endforeach
                         </select>
-                        <x-input-error :messages="$errors->get('violation_category_id')" class="mt-2" />
-                    </div>
-
-                    <!-- Violation Clause (Can be populated via JS dependent on Category, or just listed) -->
-                    <div>
-                        <x-input-label for="violation_clause_id" value="Specific Clause (Optional)" />
-                        <!-- Simplified for prototype: Assuming categories might load clauses via AJAX or just leave optional -->
-                        <select id="violation_clause_id" name="violation_clause_id" class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-green-500 bg-gray-50 cursor-not-allowed" disabled>
-                            <option value="">Select Category First</option>
-                        </select>
+                        <label class="flex items-center gap-2 text-xs text-slate-500 mt-2">
+                            <input type="checkbox" id="full-custom-toggle" class="rounded border-gray-300 text-green-600 focus:ring-green-500" {{ old('is_custom_violation') ? 'checked' : '' }}>
+                            Violation not on the list? Capture it manually.
+                        </label>
+                        <div id="full-custom-fields" class="mt-3 space-y-3 {{ old('is_custom_violation') ? '' : 'hidden' }}">
+                            <div>
+                                <textarea name="custom_violation_description" rows="3" class="block w-full border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-green-500" placeholder="Describe the violation...">{{ old('custom_violation_description') }}</textarea>
+                                <x-input-error :messages="$errors->get('custom_violation_description')" class="mt-2" />
+                            </div>
+                            <div>
+                                <select name="custom_violation_category_id" class="block w-full border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-green-500">
+                                    <option value="">Select applicable category...</option>
+                                    @foreach($violationCategories as $category)
+                                        <option value="{{ $category->id }}" {{ old('custom_violation_category_id') == $category->id ? 'selected' : '' }}>
+                                            {{ $category->name }} • {{ ucfirst($category->severity) }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <x-input-error :messages="$errors->get('custom_violation_category_id')" class="mt-2" />
+                            </div>
+                            <p class="text-[11px] text-slate-500">Custom entries stay linked to the category you pick so analytics remain accurate.</p>
+                        </div>
+                        <x-input-error :messages="$errors->get('violation_clause_id')" class="mt-2" />
                     </div>
                 </div>
             </div>
 
             <!-- Involved Students Section -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden" x-data="studentManager()">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden" x-data="studentManager()" data-selected-student="{{ $selectedStudentId ?? '' }}">
                 <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
                     <h3 class="font-bold text-slate-700 flex items-center gap-2">
                         <i class="fa-solid fa-users-viewfinder text-green-600"></i> Involved Students
@@ -95,7 +128,7 @@
                                 <!-- Student Selection -->
                                 <div class="md:col-span-2">
                                     <label class="block font-medium text-xs text-gray-700 mb-1">Select Student</label>
-                                    <select :name="'students[' + index + ']'" class="block w-full border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-green-500 text-sm" required>
+                                    <select :name="'students[' + index + ']" x-model="students[index].value" class="block w-full border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-green-500 text-sm" required>
                                         <option value="">Choose a student...</option>
                                         @foreach($students as $s)
                                             <option value="{{ $s->id }}">{{ $s->last_name }}, {{ $s->first_name }} ({{ $s->grade_level }}-{{ $s->section }})</option>
@@ -131,14 +164,52 @@
 </div>
 
 <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const toggle = document.getElementById('full-custom-toggle');
+        const select = document.getElementById('violation_clause_id');
+        const fields = document.getElementById('full-custom-fields');
+        const flag = document.getElementById('full-custom-flag');
+
+        function syncCustomState() {
+            if (!toggle) {
+                return;
+            }
+            if (toggle.checked) {
+                select.value = '';
+                select.disabled = true;
+                fields.classList.remove('hidden');
+                flag.value = '1';
+            } else {
+                select.disabled = false;
+                fields.classList.add('hidden');
+                flag.value = '0';
+            }
+        }
+
+        toggle?.addEventListener('change', syncCustomState);
+        syncCustomState();
+    });
+</script>
+
+<script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('studentManager', () => ({
-            students: [{ id: Date.now() }],
-            
-            addStudent() {
-                this.students.push({ id: Date.now() });
+            students: [{ id: Date.now(), value: '' }],
+            init() {
+                const preset = this.$el.dataset.selectedStudent;
+                if (preset) {
+                    this.students[0].value = preset;
+                    this.$nextTick(() => {
+                        const firstSelect = this.$el.querySelector('select');
+                        if (firstSelect) {
+                            firstSelect.value = preset;
+                        }
+                    });
+                }
             },
-            
+            addStudent() {
+                this.students.push({ id: Date.now(), value: '' });
+            },
             removeStudent(index) {
                 this.students.splice(index, 1);
             }

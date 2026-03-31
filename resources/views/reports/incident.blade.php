@@ -198,7 +198,7 @@
             </div>
             <div class="info-item">
                 <div class="info-label">Handbook Clause</div>
-                <div class="info-value">{{ $incident->clause?->clause_number ?? 'Not Specified' }}</div>
+                <div class="info-value">{{ $incident->custom_violation_description ?? $incident->clause?->clause_number ?? 'Not Specified' }}</div>
             </div>
         </div>
     </div>

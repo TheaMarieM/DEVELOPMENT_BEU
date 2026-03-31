@@ -142,6 +142,12 @@
                             <i class="fa-solid fa-chevron-down text-xs"></i>
                         </div>
                     </div>
+                    @if($incident->custom_violation_description)
+                        <div class="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded px-3 py-2">
+                            <span class="font-bold uppercase tracking-wide">Custom Entry:</span>
+                            <span class="font-medium">{{ $incident->custom_violation_description }}</span>
+                        </div>
+                    @endif
                     @if(!in_array($incident->status, ['reported', 'under_review']))
                         <script>document.getElementsByName('violation_clause_id')[0].disabled = true;</script>
                     @endif

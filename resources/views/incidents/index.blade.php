@@ -2,30 +2,46 @@
 
 @section('content')
 <!-- Header -->
-<header class="bg-white border-b border-gray-200 px-8 py-5 sticky top-0 z-40">
-    <div>
-        <h2 class="text-xl font-bold text-gray-800">Incident Management Logs</h2>
-        <p class="text-xs text-gray-500 font-medium mt-0.5">Record, track, and manage student behavioral cases</p>
+<header class="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-40">
+    <div class="px-8 py-4 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-4">
+            <span class="w-12 h-12 rounded-2xl bg-green-50 text-green-700 border border-green-100 flex items-center justify-center">
+                <i class="fa-solid fa-clipboard-list"></i>
+            </span>
+            <div>
+                <p class="text-[11px] uppercase tracking-[0.35em] text-gray-400">Discipline Suite</p>
+                <h2 class="text-2xl font-black text-gray-900">Incident Management Logs</h2>
+                <p class="text-sm text-gray-500">Record, track, and manage student behavioral cases</p>
+            </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-3 text-xs font-semibold text-gray-500">
+            <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 border border-gray-200">
+                <i class="fa-solid fa-bookmark text-gray-400"></i> Logging Protocol v2
+            </span>
+            <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 border border-gray-200">
+                <i class="fa-solid fa-clock text-gray-400"></i> Last sync {{ now()->diffForHumans() }}
+            </span>
+        </div>
     </div>
 </header>
 
 <div class="p-8 max-w-7xl mx-auto" x-data="{ activeTab: 'log' }">
     
     <!-- Tabs Navigation -->
-    <div class="flex gap-4 mb-6 border-b border-gray-200">
+    <div class="flex flex-wrap gap-2 mb-6 bg-gray-50 border border-gray-200 rounded-2xl p-1">
         <button @click="activeTab = 'entry'" 
-                :class="activeTab === 'entry' ? 'border-green-600 text-green-700' : 'border-transparent text-gray-500 hover:text-gray-700'"
-                class="pb-3 px-2 border-b-2 font-bold text-sm transition-colors flex items-center gap-2">
+                :class="activeTab === 'entry' ? 'bg-white text-green-700 shadow-sm border border-green-200' : 'text-gray-500 hover:text-gray-700 border-transparent'"
+                class="px-4 py-2 rounded-xl font-semibold text-sm transition flex items-center gap-2">
             <i class="fa-solid fa-pen-to-square"></i> New Incident
         </button>
         <button @click="activeTab = 'log'" 
-                :class="activeTab === 'log' ? 'border-green-600 text-green-700' : 'border-transparent text-gray-500 hover:text-gray-700'"
-                class="pb-3 px-2 border-b-2 font-bold text-sm transition-colors flex items-center gap-2">
+                :class="activeTab === 'log' ? 'bg-white text-green-700 shadow-sm border border-green-200' : 'text-gray-500 hover:text-gray-700 border-transparent'"
+                class="px-4 py-2 rounded-xl font-semibold text-sm transition flex items-center gap-2">
             <i class="fa-solid fa-table-list"></i> Master Log
         </button>
         <button @click="activeTab = 'archives'" 
-                :class="activeTab === 'archives' ? 'border-green-600 text-green-700' : 'border-transparent text-gray-500 hover:text-gray-700'"
-                class="pb-3 px-2 border-b-2 font-bold text-sm transition-colors flex items-center gap-2">
+                :class="activeTab === 'archives' ? 'bg-white text-green-700 shadow-sm border border-green-200' : 'text-gray-500 hover:text-gray-700 border-transparent'"
+                class="px-4 py-2 rounded-xl font-semibold text-sm transition flex items-center gap-2">
             <i class="fa-solid fa-box-archive"></i> Archives
         </button>
     </div>
@@ -40,7 +56,8 @@
         <form action="{{ route('incidents.store') }}" method="POST" enctype="multipart/form-data" id="incidentForm">
             @csrf
             
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6" x-data="participantManager()">
+            <section class="bg-gray-50 border border-gray-200 rounded-2xl p-6 mb-6" x-data="participantManager()">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <!-- Involved Parties -->
                 <div class="relative">
                     <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Involved Parties</label>
@@ -157,59 +174,121 @@
                 <!-- Violation Type -->
                 <div>
                     <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Violation Type (Standardized)</label>
-                    <select name="violation_category_id" required
+                    <input type="hidden" name="is_custom_violation" id="quick-custom-flag" value="{{ old('is_custom_violation', 0) }}">
+                    <select name="violation_clause_id" id="quick-violation-select"
                             class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">
                         <option value="">Select violation...</option>
                         @foreach($violationCategories as $category)
-                            <option value="{{ $category->id }}">{{ $category->name }}</option>
+                            @if($category->clauses->isNotEmpty())
+                                <optgroup label="{{ $category->name }} • {{ ucfirst($category->severity) }}">
+                                    @foreach($category->clauses as $clause)
+                                        <option value="{{ $clause->id }}">{{ $clause->clause_number }} — {{ $clause->description }}</option>
+                                    @endforeach
+                                </optgroup>
+                            @endif
                         @endforeach
                     </select>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                <!-- Date -->
-                <div>
-                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Date</label>
-                    <input type="date" name="incident_date" required value="{{ old('incident_date', now()->format('Y-m-d')) }}"
-                           class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">
-                </div>
-
-                <!-- Time -->
-                <div>
-                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Time</label>
-                    <input type="time" name="incident_time" required value="{{ old('incident_time', now()->format('H:i')) }}"
-                           class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">
-                </div>
-
-                <!-- Location -->
-                <div>
-                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Location of Incident</label>
-                    <input type="text" name="location" placeholder="e.g., Canteen, Classroom 10A" required value="{{ old('location') }}"
-                           class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <!-- Mandatory Violation Summary -->
-                <div>
-                    <label class="block text-[11px] font-bold text-red-500 uppercase tracking-wider mb-2">Mandatory Violation Summary</label>
-                    <textarea name="description" rows="4" required
-                              placeholder="Brief official summary for Principal's approval..."
-                              class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none resize-none">{{ old('description') }}</textarea>
-                </div>
-
-                <!-- Narrative Report (Optional) -->
-                <div>
-                    <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Narrative Report (Optional)</label>
-                    <div class="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:border-green-500 transition-colors cursor-pointer" onclick="document.getElementById('narrative_file').click()">
-                        <i class="fa-solid fa-cloud-arrow-up text-3xl text-gray-300 mb-2"></i>
-                        <p class="text-xs text-gray-400 mb-1" id="file-name">Click to upload scanned narrative picture</p>
-                        <input type="file" id="narrative_file" name="narrative_file" accept="image/*,.pdf" class="hidden" onchange="updateFileName(this)">
+                    <label class="flex items-center gap-2 text-[11px] text-gray-500 mt-2">
+                        <input type="checkbox" id="quick-custom-toggle" class="rounded border-gray-300 text-green-600 focus:ring-green-500" {{ old('is_custom_violation') ? 'checked' : '' }}>
+                        Violation not on the list? Type it manually.
+                    </label>
+                    <div id="quick-custom-fields" class="mt-3 space-y-3 {{ old('is_custom_violation') ? '' : 'hidden' }}">
+                        <div>
+                            <textarea name="custom_violation_description" rows="3" placeholder="Describe the violation..."
+                                      class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">{{ old('custom_violation_description') }}</textarea>
+                        </div>
+                        <div>
+                            <select name="custom_violation_category_id"
+                                    class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">
+                                <option value="">Select applicable category...</option>
+                                @foreach($violationCategories as $category)
+                                    <option value="{{ $category->id }}" {{ old('custom_violation_category_id') == $category->id ? 'selected' : '' }}>
+                                        {{ $category->name }} • {{ ucfirst($category->severity) }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <p class="text-[11px] text-gray-400">Custom entries remain tagged under the category you choose.</p>
                     </div>
-                    <p class="text-[10px] text-gray-400 mt-2 italic">Upon submission, an automated summary report will be generated for the Principal[cite: 254].</p>
                 </div>
-            </div>
+                </div>
+            </section>
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const toggle = document.getElementById('quick-custom-toggle');
+                        const select = document.getElementById('quick-violation-select');
+                        const fields = document.getElementById('quick-custom-fields');
+                        const flag = document.getElementById('quick-custom-flag');
+
+                        function syncCustomState() {
+                            if (!toggle) {
+                                return;
+                            }
+                            if (toggle.checked) {
+                                select.value = '';
+                                select.disabled = true;
+                                fields.classList.remove('hidden');
+                                flag.value = '1';
+                            } else {
+                                select.disabled = false;
+                                fields.classList.add('hidden');
+                                flag.value = '0';
+                            }
+                        }
+
+                        toggle?.addEventListener('change', syncCustomState);
+                        syncCustomState();
+                    });
+                </script>
+
+            <section class="bg-white border border-gray-200 rounded-2xl p-6 mb-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Date -->
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Date</label>
+                        <input type="date" name="incident_date" required value="{{ old('incident_date', now()->format('Y-m-d')) }}"
+                               class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">
+                    </div>
+
+                    <!-- Time -->
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Time</label>
+                        <input type="time" name="incident_time" required value="{{ old('incident_time', now()->format('H:i')) }}"
+                               class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">
+                    </div>
+
+                    <!-- Location -->
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Location of Incident</label>
+                        <input type="text" name="location" placeholder="e.g., Canteen, Classroom 10A" required value="{{ old('location') }}"
+                               class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">
+                    </div>
+                </div>
+            </section>
+
+            <section class="bg-white border border-gray-200 rounded-2xl p-6 mb-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Mandatory Violation Summary -->
+                    <div>
+                        <label class="block text-[11px] font-bold text-red-500 uppercase tracking-wider mb-2">Mandatory Violation Summary</label>
+                        <textarea name="description" rows="4" required
+                                  placeholder="Brief official summary for Principal's approval..."
+                                  class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none resize-none">{{ old('description') }}</textarea>
+                    </div>
+
+                    <!-- Narrative Report (Optional) -->
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Narrative Report (Optional)</label>
+                        <div class="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:border-green-500 transition-colors cursor-pointer" onclick="document.getElementById('narrative_file').click()">
+                            <i class="fa-solid fa-cloud-arrow-up text-3xl text-gray-300 mb-2"></i>
+                            <p class="text-xs text-gray-400 mb-1" id="file-name">Click to upload scanned narrative picture</p>
+                            <input type="file" id="narrative_file" name="narrative_file" accept="image/*,.pdf" class="hidden" onchange="updateFileName(this)">
+                        </div>
+                        <p class="text-[10px] text-gray-400 mt-2 italic">Upon submission, an automated summary report will be generated for the Principal[cite: 254].</p>
+                    </div>
+                </div>
+            </section>
 
             <div class="flex justify-end">
                 <button type="submit" class="bg-green-700 hover:bg-green-800 text-white px-8 py-3 rounded-lg text-sm font-bold transition-all shadow-md flex items-center gap-2">

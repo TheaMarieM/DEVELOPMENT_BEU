@@ -10,6 +10,7 @@ use App\Http\Controllers\AdviserController;
 use App\Http\Controllers\StudentPortalController;
 use App\Http\Controllers\ParentPortalController;
 use App\Http\Controllers\PrincipalDashboardController;
+use App\Http\Controllers\InterventionSuggestionController;
 use App\Http\Controllers\AttendanceController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -98,6 +99,9 @@ Route::middleware('auth')->group(function () {
         ->middleware('throttle:60,1');
     
     // Student Management (with rate limiting)
+    Route::get('/students/search', [StudentController::class, 'search'])
+        ->name('students.search')
+        ->middleware('throttle:60,1');
     Route::resource('students', StudentController::class)
         ->middleware('throttle:60,1');
     
@@ -159,6 +163,17 @@ Route::middleware(['auth', 'verified', 'role:adviser'])
         Route::put('/students/{student}', [AdviserController::class, 'updateStudent'])->name('students.update');
     });
 
+// Intervention Suggestion Decisions
+Route::middleware(['auth', 'verified', 'role:discipline_chair,principal,assistant_principal,adviser'])
+    ->prefix('interventions')
+    ->name('interventions.')
+    ->group(function () {
+        Route::post('/convert', [InterventionSuggestionController::class, 'convert'])
+            ->name('convert')
+            ->middleware('role:discipline_chair');
+        Route::post('/{suggestion}/decide', [InterventionSuggestionController::class, 'decide'])->name('decide');
+    });
+
 // Analytics API Routes (for AJAX charts)
 Route::middleware(['auth', 'verified', 'role:discipline_chair,principal,assistant_principal'])
     ->prefix('api/analytics')
@@ -207,6 +222,7 @@ Route::middleware(['auth', 'verified', 'role:discipline_chair,principal,assistan
         Route::get('/', [\App\Http\Controllers\ReportController::class, 'index'])->name('index');
         Route::get('/incident/{incident}', [\App\Http\Controllers\ReportController::class, 'incident'])->name('incident');
         Route::get('/student', [\App\Http\Controllers\ReportController::class, 'studentRecord'])->name('student');
+        Route::get('/attendance', [\App\Http\Controllers\ReportController::class, 'attendanceRecord'])->name('attendance');
         Route::get('/monthly', [\App\Http\Controllers\ReportController::class, 'monthlySummary'])->name('monthly');
         Route::get('/quarterly', [\App\Http\Controllers\ReportController::class, 'quarterlyReport'])->name('quarterly');
     });

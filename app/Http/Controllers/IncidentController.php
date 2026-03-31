@@ -2,17 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ParentModel;
 use App\Models\Incident;
 use App\Models\Student;
 use App\Models\ViolationCategory;
 use App\Models\ViolationClause;
-use App\Models\Sanction;
 use App\Models\ParentNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 class IncidentController extends Controller
 {
@@ -58,34 +55,44 @@ class IncidentController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        // Get archived incidents
-        $archivedIncidents = Incident::with(['students', 'category'])
-            ->where('status', 'closed')
-            ->orderBy('updated_at', 'desc')
-            ->get();
-
-        $violationCategories = ViolationCategory::where('is_active', true)
-            ->orderBy('sort_order')
-            ->get();
-
-        $students = Student::where('status', 'active')
+        $students = Student::select('id', 'first_name', 'last_name', 'grade_level', 'section')
+            ->where('status', 'active')
             ->orderBy('last_name')
+            ->orderBy('first_name')
             ->get();
 
-        return view('incidents.index', compact('incidents', 'archivedIncidents', 'violationCategories', 'students'));
+        $violationCategories = ViolationCategory::with(['clauses' => function ($q) {
+                $q->where('is_active', true)
+                  ->orderBy('clause_number');
+            }])
+            ->orderBy('severity')
+            ->orderBy('name')
+            ->get();
+        
+        return view('incidents.index', compact('incidents', 'students', 'violationCategories'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $students = Student::where('status', 'active')
             ->orderBy('last_name')
-            ->get();
-        
-        $categories = ViolationCategory::where('is_active', true)
-            ->orderBy('sort_order')
+            ->orderBy('first_name')
+            ->get(['id', 'student_id', 'first_name', 'last_name', 'grade_level', 'section']);
+
+        $violationCategories = ViolationCategory::with(['clauses' => function ($query) {
+                $query->where('is_active', true)
+                    ->orderBy('clause_number');
+            }])
+            ->orderBy('severity')
+            ->orderBy('name')
             ->get();
 
-        return view('incidents.create', compact('students', 'categories'));
+        $selectedStudentId = $request->input('student_id');
+        $selectedStudent = $selectedStudentId
+            ? $students->firstWhere('id', (int) $selectedStudentId)
+            : null;
+
+        return view('incidents.create', compact('students', 'violationCategories', 'selectedStudentId', 'selectedStudent'));
     }
 
     public function store(Request $request)
@@ -102,44 +109,68 @@ class IncidentController extends Controller
             'students.*' => 'exists:students,id',
             'non_student_names' => 'nullable|array',
             'non_student_names.*' => 'string|max:255',
-            'violation_category_id' => 'nullable|exists:violation_categories,id',
-            'violation_clause_id' => 'nullable|exists:violation_clauses,id',
+            'is_custom_violation' => 'required|boolean',
+            'violation_clause_id' => 'nullable|required_unless:is_custom_violation,1|exists:violation_clauses,id',
+            'custom_violation_description' => 'nullable|required_if:is_custom_violation,1|string|max:1000',
+            'custom_violation_category_id' => 'nullable|required_if:is_custom_violation,1|exists:violation_categories,id',
             'narrative_reports' => 'nullable|array',
             'narrative_reports.*' => 'nullable|string',
+            'narrative_files' => 'nullable|array',
             'narrative_files.*' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
         ]);
 
+        $isCustomViolation = (bool) $validated['is_custom_violation'];
+        $selectedClause = null;
+        $categoryId = null;
+        $customDescription = null;
+
+        if ($isCustomViolation) {
+            $categoryId = $validated['custom_violation_category_id'];
+            $customDescription = $validated['custom_violation_description'];
+        } else {
+            $selectedClause = ViolationClause::with('category')->find($validated['violation_clause_id']);
+            if (!$selectedClause) {
+                return back()->withInput()->with('error', 'Selected violation could not be found.');
+            }
+            $categoryId = $selectedClause->violation_category_id;
+        }
+
         DB::beginTransaction();
         try {
-            // Process non-student participants
             $nonStudentString = null;
             if (!empty($validated['non_student_names'])) {
-                $nonStudentString = implode(', ', $validated['non_student_names']);
+                $filteredNames = array_filter($validated['non_student_names']);
+                if (!empty($filteredNames)) {
+                    $nonStudentString = implode(', ', $filteredNames);
+                }
             }
 
-            // Create incident
             $incident = Incident::create([
                 'incident_date' => $validated['incident_date'],
                 'location' => $validated['location'],
                 'description' => $validated['description'],
                 'reported_by' => Auth::id(),
-                'violation_category_id' => $validated['violation_category_id'] ?? null,
-                'violation_clause_id' => $validated['violation_clause_id'] ?? null,
+                'violation_category_id' => $categoryId,
+                'violation_clause_id' => $selectedClause?->id,
+                'custom_violation_description' => $customDescription,
                 'non_student_participant' => $nonStudentString,
                 'status' => 'reported',
             ]);
 
-            // Attach students if present
             \Illuminate\Support\Facades\Log::info('Validated students:', ['students' => $validated['students'] ?? 'NULL']);
-            
+
             if (!empty($validated['students'])) {
                 \Illuminate\Support\Facades\Log::info('Processing students. Count: ' . count($validated['students']));
-                
+
                 foreach ($validated['students'] as $index => $studentId) {
                     \Illuminate\Support\Facades\Log::info('Attaching student ID: ' . $studentId);
                     $student = Student::find($studentId);
-                    $offenseCount = $this->calculateOffenseCount($studentId, $validated['violation_category_id']);
-                    
+                    if (!$student) {
+                        continue;
+                    }
+
+                    $offenseCount = $this->calculateOffenseCount($studentId, $categoryId);
+
                     $narrativeFilePath = null;
                     if ($request->hasFile("narrative_files.{$index}")) {
                         $file = $request->file("narrative_files.{$index}");
@@ -151,10 +182,9 @@ class IncidentController extends Controller
                         'narrative_file_path' => $narrativeFilePath,
                         'offense_count' => $offenseCount,
                     ]);
-                    
+
                     \Illuminate\Support\Facades\Log::info('Successfully attached student ID: ' . $studentId);
 
-                    // Send parent notification if required
                     if ($incident->category && $incident->category->requires_parent_notification) {
                         $this->sendParentNotification($incident, $student);
                     }
@@ -215,6 +245,7 @@ class IncidentController extends Controller
             $incident->update([
                 'violation_category_id' => $validated['violation_category_id'],
                 'violation_clause_id' => $validated['violation_clause_id'],
+                'custom_violation_description' => null,
                 'status' => 'under_review',
             ]);
 
@@ -262,7 +293,12 @@ class IncidentController extends Controller
         }
 
         if ($request->filled('violation_clause_id')) {
-            $incident->violation_clause_id = $request->violation_clause_id;
+            $clause = ViolationClause::with('category')->find($request->violation_clause_id);
+            if ($clause) {
+                $incident->violation_clause_id = $clause->id;
+                $incident->violation_category_id = $clause->violation_category_id;
+                $incident->custom_violation_description = null;
+            }
         }
 
         $incident->status = 'pending_approval';

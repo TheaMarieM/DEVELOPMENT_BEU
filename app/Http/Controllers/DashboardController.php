@@ -4,21 +4,22 @@ namespace App\Http\Controllers;
 
 use App\Models\Incident;
 use App\Models\Student;
-use App\Models\InterventionSuggestion;
 use App\Services\AnalyticsService;
+use App\Services\InterventionSuggestionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
-use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
     protected AnalyticsService $analyticsService;
+    protected InterventionSuggestionService $interventionSuggestionService;
 
-    public function __construct(AnalyticsService $analyticsService)
+    public function __construct(AnalyticsService $analyticsService, InterventionSuggestionService $interventionSuggestionService)
     {
         $this->analyticsService = $analyticsService;
+        $this->interventionSuggestionService = $interventionSuggestionService;
     }
 
     public function index(Request $request)
@@ -84,15 +85,12 @@ class DashboardController extends Controller
             ->take(20)
             ->get();
 
-        // Get AI-driven intervention suggestions
-        $interventionSuggestions = InterventionSuggestion::where('status', 'pending')
-            ->orderBy('created_at', 'desc')
-            ->take(3)
-            ->get();
-
-        // Prepare data for view
         $mostCommonIncident = $commonIncident?->category;
-        $suggestions = $interventionSuggestions;
+
+        $insightPayload = $this->interventionSuggestionService->getDashboardInsights(3);
+        $suggestions = $insightPayload['suggestions'];
+        $suggestionsSource = $insightPayload['suggestionsSource'];
+        $recentPlans = $insightPayload['recentPlans'];
 
         // Additional stats for enhanced dashboard
         $quickStats = [
@@ -108,7 +106,9 @@ class DashboardController extends Controller
             'pendingApprovalsCount',
             'recentIncidents',
             'suggestions',
-            'quickStats'
+            'quickStats',
+            'suggestionsSource',
+            'recentPlans'
         ));
     }
 }

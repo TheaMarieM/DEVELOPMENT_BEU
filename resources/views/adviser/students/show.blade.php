@@ -252,8 +252,10 @@
                         <td class="px-6 py-4 text-gray-600 font-mono text-xs">{{ $incident->incident_number }}</td>
                         <td class="px-6 py-4 text-gray-900 font-semibold">
                             {{ $incident->category->name ?? 'N/A' }}
-                            @if($incident->clause)
-                            <br><span class="text-xs text-gray-500">{{ $incident->clause->code }}</span>
+                            @if($incident->custom_violation_description)
+                            <br><span class="text-xs text-gray-500">{{ $incident->custom_violation_description }}</span>
+                            @elseif($incident->clause)
+                            <br><span class="text-xs text-gray-500">{{ $incident->clause->code ?? $incident->clause->clause_number }}</span>
                             @endif
                         </td>
                         <td class="px-6 py-4">

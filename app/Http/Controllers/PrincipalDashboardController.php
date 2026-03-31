@@ -12,9 +12,17 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use App\Services\InterventionSuggestionService;
 
 class PrincipalDashboardController extends Controller
 {
+    protected InterventionSuggestionService $interventionSuggestionService;
+
+    public function __construct(InterventionSuggestionService $interventionSuggestionService)
+    {
+        $this->interventionSuggestionService = $interventionSuggestionService;
+    }
+
     public function dashboard(Request $request)
     {
         $pendingApprovalsQuery = Incident::query()
@@ -63,6 +71,8 @@ class PrincipalDashboardController extends Controller
         $commonIncidentName = $commonIncident?->category?->name ?? 'No active violation trend';
         $commonIncidentTotal = $commonIncident->total ?? 0;
 
+        $insights = $this->interventionSuggestionService->getDashboardInsights(3);
+
         return view('principal.dashboard', [
             'incidentsOverview' => $incidentsOverview,
             'pendingApprovalsCount' => $pendingApprovalsCount,
@@ -70,6 +80,9 @@ class PrincipalDashboardController extends Controller
             'commonIncidentName' => $commonIncidentName,
             'commonIncidentTotal' => $commonIncidentTotal,
             'pendingSidebarCount' => $pendingApprovalsCount,
+            'suggestions' => $insights['suggestions'],
+            'suggestionsSource' => $insights['suggestionsSource'],
+            'recentPlans' => $insights['recentPlans'],
         ]);
     }
 

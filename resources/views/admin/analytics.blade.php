@@ -1,24 +1,40 @@
 @extends('layouts.app')
 
 @section('content')
-<header class="bg-gradient-to-r from-green-800 to-green-700 border-b border-green-900 px-8 py-6 flex justify-between items-center sticky top-0 z-40 shadow-lg">
+<header class="bg-white border-b border-gray-200 px-8 py-6 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-30">
     <div>
-        <h2 class="text-2xl font-black text-white">Analytics Dashboard</h2>
-        <p class="text-sm text-green-100 font-medium mt-1">Data-driven insights for discipline management</p>
+        <p class="text-xs font-bold text-emerald-600 uppercase tracking-[0.3em]">Analytics</p>
+        <h2 class="text-3xl font-black text-gray-900">Discipline Intelligence Center</h2>
+        <p class="text-sm text-gray-500 font-medium mt-1">Live signals across incidents, attendance, and approvals.</p>
     </div>
-    <div class="flex items-center gap-4">
-        <a href="{{ route('admin.analytics') }}" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2">
-            <i class="fa-solid fa-sync-alt text-xs"></i> Refresh
+    <div class="flex items-center gap-3">
+        <a href="{{ route('admin.analytics') }}" class="px-4 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition flex items-center gap-2">
+            <i class="fa-solid fa-rotate-right text-xs"></i> Refresh Data
         </a>
-        <a href="{{ route('dashboard') }}" class="bg-white hover:bg-gray-50 text-green-800 px-5 py-2 rounded-lg text-sm font-bold transition-all">
-            <i class="fa-solid fa-arrow-left mr-2"></i> Dashboard
+        <a href="{{ route('dashboard') }}" class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 transition flex items-center gap-2">
+            <i class="fa-solid fa-arrow-left text-xs"></i> Back to Dashboard
         </a>
     </div>
 </header>
 
-<div class="p-8">
+<div class="p-8 max-w-7xl mx-auto space-y-10">
+    @php $insightCards = $insights ?? []; @endphp
+    @if(!empty($insightCards))
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-10">
+            @foreach($insightCards as $insight)
+                <div class="rounded-2xl p-6 border border-emerald-100 shadow-md bg-gradient-to-br from-white to-emerald-50/70">
+                    <p class="text-xs font-semibold text-emerald-600 uppercase tracking-widest">{{ $insight['title'] }}</p>
+                    <p class="text-2xl font-black mt-2 text-gray-900">{{ $insight['value'] }}</p>
+                    @if(!empty($insight['context']))
+                        <p class="text-sm text-gray-600 mt-3">{{ $insight['context'] }}</p>
+                    @endif
+                </div>
+            @endforeach
+        </div>
+    @endif
+
     <!-- Overview Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <!-- Total Incidents This Month -->
         <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
             <div class="flex items-center justify-between mb-4">
@@ -79,6 +95,43 @@
             <p class="text-xs text-gray-400 mt-2">Cases resolved this month</p>
         </div>
     </div>
+
+    @if(!empty($interventionInsights))
+        <section class="rounded-3xl border border-emerald-100 bg-gradient-to-br from-white via-emerald-50/60 to-white shadow-sm">
+            <div class="px-6 py-5 border-b border-emerald-100 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <p class="text-xs font-bold text-emerald-600 uppercase tracking-[0.35em]">Intervention Layer</p>
+                    <h3 class="text-2xl font-black text-gray-900">Insights from the last 45 days</h3>
+                    <p class="text-sm text-gray-500">Auto-curated hotspots blending incident and attendance spikes.</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-white/80 border border-emerald-100 px-3 py-1 rounded-full">
+                        <i class="fa-solid fa-wave-square text-[10px]"></i> Live Analytics
+                    </span>
+                    <a href="{{ route('dashboard') }}#intervention" class="text-xs font-bold text-emerald-700 hover:text-emerald-900">Sync with Dashboard →</a>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5 p-6">
+                @foreach($interventionInsights as $insight)
+                    <article class="p-5 rounded-2xl bg-white border border-emerald-100 shadow-sm hover:border-emerald-200 transition">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <p class="text-[11px] uppercase tracking-[0.3em] text-emerald-600 font-bold">{{ $insight['grade_level'] ?? 'All Levels' }}</p>
+                                <p class="text-3xl font-black text-gray-900 mt-2">{{ $insight['incident_count'] ?? 0 }}</p>
+                                <p class="text-xs text-gray-500 font-semibold">Flagged events</p>
+                            </div>
+                            <span class="px-3 py-1 rounded-full text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100">Hotspot</span>
+                        </div>
+                        <p class="text-sm text-gray-700 leading-relaxed">{{ $insight['suggestion'] }}</p>
+                        <div class="mt-4 flex flex-wrap gap-2 text-[11px] text-gray-500">
+                            <span class="inline-flex items-center gap-1"><i class="fa-solid fa-clock text-[9px]"></i> Window: 45 days</span>
+                            <span class="inline-flex items-center gap-1"><i class="fa-solid fa-layer-group text-[9px]"></i> Source: incidents + attendance</span>
+                        </div>
+                    </article>
+                @endforeach
+            </div>
+        </section>
+    @endif
 
     <!-- Charts Row 1 -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
@@ -259,6 +312,157 @@
             <span class="flex items-center gap-2">
                 <span class="w-4 h-4 rounded bg-red-100"></span> Critical (10+)
             </span>
+        </div>
+    </div>
+
+    <!-- Data Explorer with actual records -->
+    @php
+        $datasetMeta = $dataset ?? ['records' => []];
+        $records = $datasetMeta['records'] ?? [];
+        $filterValues = $filters ?? [];
+        $currentLimit = request()->input('limit', $datasetMeta['limit'] ?? 50);
+    @endphp
+    <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm mt-8">
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+            <div>
+                <h3 class="text-lg font-bold text-gray-900">Incident Data Explorer</h3>
+                <p class="text-xs text-gray-500 mt-1">
+                    Showing {{ count($records) }} of {{ $datasetMeta['total'] ?? count($records) }} matching incidents
+                </p>
+            </div>
+            <a href="{{ route('incidents.index') }}" class="inline-flex items-center gap-2 text-sm font-semibold text-green-700 bg-green-50 px-4 py-2 rounded-xl border border-green-100 hover:bg-green-100 transition">
+                <i class="fa-solid fa-up-right-from-square text-xs"></i> Open Incidents Module
+            </a>
+        </div>
+
+        <form method="GET" action="{{ route('admin.analytics') }}" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
+            <div>
+                <label class="text-xs font-bold text-gray-500 uppercase block mb-1">Grade Level</label>
+                <select name="grade_level" class="w-full border-gray-200 rounded-xl text-sm focus:ring-green-500 focus:border-green-500 bg-gray-50">
+                    <option value="">All Grades</option>
+                    @foreach(range(7, 12) as $grade)
+                        <option value="{{ $grade }}" @selected(($filterValues['grade_level'] ?? null) == $grade)>Grade {{ $grade }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-gray-500 uppercase block mb-1">Section</label>
+                <input type="text" name="section" value="{{ $filterValues['section'] ?? '' }}" placeholder="e.g. St. Paul" class="w-full border-gray-200 rounded-xl text-sm focus:ring-green-500 focus:border-green-500 bg-gray-50">
+            </div>
+            <div>
+                <label class="text-xs font-bold text-gray-500 uppercase block mb-1">Severity</label>
+                <select name="severity" class="w-full border-gray-200 rounded-xl text-sm focus:ring-green-500 focus:border-green-500 bg-gray-50">
+                    <option value="">All Severities</option>
+                    @foreach(['minor','moderate','major','critical'] as $severityOption)
+                        <option value="{{ $severityOption }}" @selected(($filterValues['severity'] ?? null) === $severityOption)>{{ ucfirst($severityOption) }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-gray-500 uppercase block mb-1">Status</label>
+                <select name="status" class="w-full border-gray-200 rounded-xl text-sm focus:ring-green-500 focus:border-green-500 bg-gray-50">
+                    <option value="">Any Status</option>
+                    @foreach(['reported' => 'Reported', 'under_review' => 'Under Review', 'pending_approval' => 'Pending', 'approved' => 'Approved', 'closed' => 'Closed'] as $statusValue => $statusLabel)
+                        <option value="{{ $statusValue }}" @selected(($filterValues['status'] ?? null) === $statusValue)>{{ $statusLabel }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-gray-500 uppercase block mb-1">Date From</label>
+                <input type="date" name="date_from" value="{{ $filterValues['date_from'] ?? '' }}" class="w-full border-gray-200 rounded-xl text-sm focus:ring-green-500 focus:border-green-500 bg-gray-50">
+            </div>
+            <div>
+                <label class="text-xs font-bold text-gray-500 uppercase block mb-1">Date To</label>
+                <input type="date" name="date_to" value="{{ $filterValues['date_to'] ?? '' }}" class="w-full border-gray-200 rounded-xl text-sm focus:ring-green-500 focus:border-green-500 bg-gray-50">
+            </div>
+            <div>
+                <label class="text-xs font-bold text-gray-500 uppercase block mb-1">Sample Size</label>
+                <select name="limit" class="w-full border-gray-200 rounded-xl text-sm focus:ring-green-500 focus:border-green-500 bg-gray-50">
+                    @foreach([25, 50, 100, 150, 200] as $option)
+                        <option value="{{ $option }}" @selected($currentLimit == $option)>{{ $option }} records</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="flex items-end gap-3">
+                <button type="submit" class="flex-1 bg-green-700 hover:bg-green-800 text-white py-3 rounded-xl text-sm font-bold shadow-lg shadow-green-900/20">Apply Filters</button>
+                <a href="{{ route('admin.analytics') }}" class="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-sm font-bold">Reset</a>
+            </div>
+        </form>
+
+        <div class="overflow-x-auto border border-gray-100 rounded-2xl">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-gray-50 text-gray-600 uppercase text-xs font-bold tracking-wider">
+                    <tr>
+                        <th class="px-4 py-3">Reference</th>
+                        <th class="px-4 py-3">Student</th>
+                        <th class="px-4 py-3">Grade / Section</th>
+                        <th class="px-4 py-3">Category</th>
+                        <th class="px-4 py-3">Severity</th>
+                        <th class="px-4 py-3">Status</th>
+                        <th class="px-4 py-3">Reported By</th>
+                        <th class="px-4 py-3">Date</th>
+                        <th class="px-4 py-3 text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 bg-white">
+                    @forelse($records as $record)
+                        <tr class="hover:bg-green-50/40">
+                            <td class="px-4 py-3 font-semibold text-gray-900">{{ $record['reference'] }}</td>
+                            <td class="px-4 py-3">
+                                <p class="font-bold text-gray-900">{{ $record['student'] ?? 'N/A' }}</p>
+                                <p class="text-xs text-gray-500">{{ $record['student_id'] ?? '—' }}</p>
+                            </td>
+                            <td class="px-4 py-3 text-gray-700">{{ $record['grade_level'] ? 'Grade ' . $record['grade_level'] : '—' }}<br><span class="text-xs text-gray-500">{{ $record['section'] ?? '—' }}</span></td>
+                            <td class="px-4 py-3 text-gray-700">{{ $record['category'] }}</td>
+                            <td class="px-4 py-3">
+                                @php
+                                    $severityClassMap = [
+                                        'critical' => 'bg-red-50 text-red-700 border-red-200',
+                                        'major' => 'bg-orange-50 text-orange-700 border-orange-200',
+                                        'moderate' => 'bg-yellow-50 text-yellow-700 border-yellow-200',
+                                        'minor' => 'bg-green-50 text-green-700 border-green-200',
+                                    ];
+                                    $severityKey = strtolower($record['severity']);
+                                    $severityClass = $severityClassMap[$severityKey] ?? 'bg-gray-100 text-gray-700 border-gray-200';
+                                @endphp
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border {{ $severityClass }}">
+                                    {{ ucfirst($record['severity']) }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3">
+                                @php
+                                    $statusClassMap = [
+                                        'pending_approval' => 'bg-amber-50 text-amber-700 border-amber-200',
+                                        'under_review' => 'bg-purple-50 text-purple-700 border-purple-200',
+                                        'reported' => 'bg-blue-50 text-blue-700 border-blue-200',
+                                        'approved' => 'bg-green-50 text-green-700 border-green-200',
+                                        'closed' => 'bg-gray-100 text-gray-700 border-gray-200',
+                                    ];
+                                    $statusClass = $statusClassMap[$record['status']] ?? 'bg-gray-100 text-gray-700 border-gray-200';
+                                @endphp
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border capitalize {{ $statusClass }}">
+                                    {{ str_replace('_', ' ', $record['status']) }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-gray-700">{{ $record['reporter'] }}</td>
+                            <td class="px-4 py-3 text-gray-700">
+                                <p class="font-semibold">{{ $record['date_label'] }}</p>
+                                <p class="text-xs text-gray-500">{{ $record['time_label'] }}</p>
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                                <a href="{{ route('incidents.show', $record['id']) }}" class="inline-flex items-center gap-2 text-sm font-semibold text-green-700 hover:text-green-900">View <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i></a>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="9" class="px-4 py-12 text-center text-gray-500">
+                                <i class="fa-solid fa-chart-line text-2xl mb-2"></i>
+                                <p>No incident data found for the selected filters.</p>
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
     </div>
 </div>

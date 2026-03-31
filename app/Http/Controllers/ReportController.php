@@ -52,6 +52,7 @@ class ReportController extends Controller
     public function studentRecord(Request $request)
     {
         $studentId = $request->input('student');
+        $mode = $request->input('mode', 'incidents');
         
         if (!$studentId) {
             return redirect()->route('reports.index')->with('error', 'Please select a student.');
@@ -64,6 +65,26 @@ class ReportController extends Controller
         $sanctions = Sanction::where('student_id', $student->id)
             ->orderBy('start_date', 'desc')
             ->get();
+
+        $attendance = null;
+        if ($mode === 'all') {
+            $student->load(['attendanceRecords' => function ($query) {
+                $query->orderBy('date', 'desc')
+                    ->orderBy('created_at', 'desc')
+                    ->with('recorder');
+            }]);
+
+            $attendanceRecords = $student->attendanceRecords;
+            $attendance = [
+                'summary' => [
+                    'total_records' => $attendanceRecords->count(),
+                    'absent' => $attendanceRecords->where('status', 'absent')->count(),
+                    'tardy' => $attendanceRecords->where('status', 'tardy')->count(),
+                    'excused' => $attendanceRecords->where('status', 'excused')->count(),
+                ],
+                'records' => $attendanceRecords,
+            ];
+        }
 
         return view('reports.student-record', [
             'student' => [
@@ -81,6 +102,49 @@ class ReportController extends Controller
             ],
             'incidents' => $student->incidents,
             'sanctions' => $sanctions,
+            'attendance' => $attendance,
+            'school' => $this->getSchoolInfo(),
+            'generated_at' => now()->format('F d, Y h:i A'),
+            'mode' => $mode,
+        ]);
+    }
+
+    /**
+     * Generate student attendance record (printable view)
+     */
+    public function attendanceRecord(Request $request)
+    {
+        $studentId = $request->input('student');
+
+        if (!$studentId) {
+            return redirect()->route('reports.index')->with('error', 'Please select a student.');
+        }
+
+        $student = Student::with(['attendanceRecords' => function ($query) {
+            $query->orderBy('date', 'desc')
+                ->orderBy('created_at', 'desc')
+                ->with('recorder');
+        }])->findOrFail($studentId);
+
+        $records = $student->attendanceRecords;
+
+        $summary = [
+            'total_records' => $records->count(),
+            'absent' => $records->where('status', 'absent')->count(),
+            'tardy' => $records->where('status', 'tardy')->count(),
+            'excused' => $records->where('status', 'excused')->count(),
+        ];
+
+        return view('reports.attendance-record', [
+            'student' => [
+                'name' => "{$student->first_name} {$student->middle_name} {$student->last_name}",
+                'student_id' => $student->student_id,
+                'grade_level' => "Grade {$student->grade_level}",
+                'section' => $student->section ?? 'N/A',
+                'status' => $student->status ?? 'active',
+            ],
+            'summary' => $summary,
+            'records' => $records,
             'school' => $this->getSchoolInfo(),
             'generated_at' => now()->format('F d, Y h:i A'),
         ]);

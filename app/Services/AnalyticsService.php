@@ -416,6 +416,215 @@ class AnalyticsService
     }
 
     /**
+     * Get a tabular dataset of incidents for deeper analytics
+     */
+    public function getIncidentDataset(array $filters = [], int $limit = 50): array
+    {
+        $limit = max(10, min($limit, 200));
+
+        $query = Incident::with([
+                'category:id,name,severity',
+                'students:id,student_id,first_name,middle_name,last_name,grade_level,section',
+                'reporter:id,name',
+            ])
+            ->orderByDesc('incident_date');
+
+        if (!empty($filters['grade_level'])) {
+            $query->whereHas('students', function ($studentQuery) use ($filters) {
+                $studentQuery->where('grade_level', $filters['grade_level']);
+            });
+        }
+
+        if (!empty($filters['section'])) {
+            $query->whereHas('students', function ($studentQuery) use ($filters) {
+                $studentQuery->where('section', $filters['section']);
+            });
+        }
+
+        if (!empty($filters['severity'])) {
+            $query->whereHas('category', function ($categoryQuery) use ($filters) {
+                $categoryQuery->where('severity', $filters['severity']);
+            });
+        }
+
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        if (!empty($filters['date_from'])) {
+            $startDate = Carbon::parse($filters['date_from'])->startOfDay();
+            $query->where('incident_date', '>=', $startDate);
+        }
+
+        if (!empty($filters['date_to'])) {
+            $endDate = Carbon::parse($filters['date_to'])->endOfDay();
+            $query->where('incident_date', '<=', $endDate);
+        }
+
+        $totalRecords = (clone $query)->count();
+
+        $incidents = $query
+            ->take($limit)
+            ->get();
+
+        $records = $incidents->map(function (Incident $incident) {
+            $primaryStudent = $incident->students->first();
+            $category = $incident->category;
+
+            return [
+                'id' => $incident->id,
+                'reference' => $incident->reference_code ?? sprintf('INC-%05d', $incident->id),
+                'student' => $primaryStudent?->full_name,
+                'student_id' => $primaryStudent?->student_id,
+                'grade_level' => $primaryStudent?->grade_level,
+                'section' => $primaryStudent?->section,
+                'category' => $category->name ?? 'Uncategorized',
+                'severity' => $category->severity ?? 'n/a',
+                'status' => $incident->status,
+                'reporter' => $incident->reporter->name ?? 'Unknown',
+                'narrative' => $incident->description ?? null,
+                'date' => optional($incident->incident_date)->toDateString(),
+                'date_label' => optional($incident->incident_date)->format('M d, Y'),
+                'time_label' => optional($incident->incident_date)->format('h:i A'),
+            ];
+        })->toArray();
+
+        return [
+            'limit' => $limit,
+            'total' => $totalRecords,
+            'records' => $records,
+        ];
+    }
+
+    /**
+     * Generate intervention insights when no manual suggestions are queued.
+     */
+    public function generateInterventionInsights(int $limit = 3): array
+    {
+        $limit = max(1, min($limit, 5));
+        $periodStart = now()->subDays(45);
+        $periodEnd = now();
+
+        $incidentHotspots = DB::table('incident_students')
+            ->join('students', 'incident_students.student_id', '=', 'students.id')
+            ->join('incidents', 'incident_students.incident_id', '=', 'incidents.id')
+            ->leftJoin('violation_categories', 'incidents.violation_category_id', '=', 'violation_categories.id')
+            ->where('incidents.incident_date', '>=', $periodStart)
+            ->select(
+                'students.grade_level',
+                'students.section',
+                DB::raw("COALESCE(violation_categories.name, 'General Incident') as category_name"),
+                DB::raw("COALESCE(violation_categories.severity, 'medium') as severity"),
+                DB::raw('COUNT(*) as incident_count')
+            )
+            ->groupBy('students.grade_level', 'students.section', 'category_name', 'severity')
+            ->orderByDesc('incident_count')
+            ->limit($limit * 3)
+            ->get();
+
+        $insights = [];
+
+        foreach ($incidentHotspots as $hotspot) {
+            if (count($insights) >= $limit) {
+                break;
+            }
+
+            $gradeLevel = $hotspot->grade_level;
+            $section = $hotspot->section;
+            $scope = $this->formatScopeLabel($gradeLevel, $section);
+            $action = $this->actionForSeverity($hotspot->severity);
+
+            $insights[] = [
+                'grade_level' => $gradeLevel,
+                'section' => $section,
+                'scope_label' => $scope,
+                'incident_type' => $hotspot->category_name,
+                'incident_count' => $hotspot->incident_count,
+                'analysis_period_start' => $periodStart->toDateString(),
+                'analysis_period_end' => $periodEnd->toDateString(),
+                'suggestion' => sprintf(
+                    '%s logged %d %s cases in the last 45 days. %s',
+                    $scope,
+                    $hotspot->incident_count,
+                    $hotspot->category_name,
+                    $action
+                ),
+            ];
+        }
+
+        if (count($insights) < $limit) {
+            $attendanceHotspots = AttendanceRecord::query()
+                ->join('students', 'attendance_records.student_id', '=', 'students.id')
+                ->whereIn('attendance_records.status', ['absent', 'tardy'])
+                ->where('attendance_records.date', '>=', $periodStart)
+                ->select(
+                    'students.grade_level',
+                    'students.section',
+                    'attendance_records.status',
+                    DB::raw('COUNT(*) as total')
+                )
+                ->groupBy('students.grade_level', 'students.section', 'attendance_records.status')
+                ->orderByDesc('total')
+                ->limit($limit * 2)
+                ->get();
+
+            foreach ($attendanceHotspots as $hotspot) {
+                if (count($insights) >= $limit) {
+                    break;
+                }
+
+                $gradeLevel = $hotspot->grade_level;
+                $section = $hotspot->section;
+                $scope = $this->formatScopeLabel($gradeLevel, $section);
+                $statusLabel = $hotspot->status === 'tardy' ? 'tardy arrivals' : 'absences';
+
+                $insights[] = [
+                    'grade_level' => $gradeLevel,
+                    'section' => $section,
+                    'scope_label' => $scope,
+                    'incident_type' => ucfirst($hotspot->status) . ' pattern',
+                    'incident_count' => $hotspot->total,
+                    'analysis_period_start' => $periodStart->toDateString(),
+                    'analysis_period_end' => $periodEnd->toDateString(),
+                    'suggestion' => sprintf(
+                        '%s recorded %d %s in the last 45 days. Coordinate with advisers for targeted follow-ups.',
+                        $scope,
+                        $hotspot->total,
+                        $statusLabel
+                    ),
+                ];
+            }
+        }
+
+        return $insights;
+    }
+
+    protected function formatScopeLabel($gradeLevel, $section): string
+    {
+        if ($gradeLevel) {
+            $label = 'Grade ' . $gradeLevel;
+            if ($section) {
+                $label .= ' - ' . $section;
+            }
+            return $label;
+        }
+
+        return 'All Grade Levels';
+    }
+
+    protected function actionForSeverity(?string $severity): string
+    {
+        $severity = strtolower($severity ?? '');
+
+        return match ($severity) {
+            'high' => 'Schedule restorative conferences with guardians and prioritize multi-day monitoring.',
+            'medium' => 'Coordinate guidance-led coaching blocks with advisers.',
+            'low' => 'Reinforce homeroom reminders and document follow-ups.',
+            default => 'Review advisory routines with guidance counselors.',
+        };
+    }
+
+    /**
      * Clear analytics cache
      */
     public function clearCache(): void

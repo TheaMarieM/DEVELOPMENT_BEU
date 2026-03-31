@@ -10,7 +10,7 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: 'Times New Roman', Times, serif;
             font-size: 12pt;
@@ -25,7 +25,6 @@
             padding: 0.5in;
         }
 
-        /* Header */
         .header {
             text-align: center;
             margin-bottom: 20px;
@@ -55,7 +54,6 @@
             text-decoration: underline;
         }
 
-        /* Student Info */
         .student-info {
             margin: 20px 0;
             padding: 15px;
@@ -75,10 +73,9 @@
 
         .info-label {
             font-weight: bold;
-            min-width: 120px;
+            min-width: 140px;
         }
 
-        /* Summary Stats */
         .summary-stats {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -105,7 +102,6 @@
             color: #666;
         }
 
-        /* Incidents Table */
         .section-title {
             font-size: 14pt;
             font-weight: bold;
@@ -148,8 +144,8 @@
         .status-pending { background: #fef3c7; color: #92400e; }
         .status-approved { background: #d1fae5; color: #065f46; }
         .status-resolved { background: #dbeafe; color: #1e40af; }
+        .status-neutral { background: #e5e7eb; color: #374151; }
 
-        /* Sanctions Section */
         .sanction-card {
             border: 1px solid #ddd;
             padding: 10px;
@@ -168,7 +164,6 @@
             margin-top: 5px;
         }
 
-        /* Footer */
         .footer {
             margin-top: 40px;
             padding-top: 20px;
@@ -208,7 +203,6 @@
             text-align: center;
         }
 
-        /* Print Controls */
         .print-controls {
             position: fixed;
             top: 20px;
@@ -248,7 +242,6 @@
             background: #4b5563;
         }
 
-        /* Print Styles */
         @media print {
             .print-controls {
                 display: none !important;
@@ -263,14 +256,8 @@
                 max-width: 100%;
             }
 
-            .student-info {
-                background: #fff;
-            }
-
-            .stat-box {
-                background: #fff;
-            }
-
+            .student-info,
+            .stat-box,
             .sanction-card {
                 background: #fff;
             }
@@ -278,26 +265,21 @@
     </style>
 </head>
 <body>
-    <!-- Print Controls -->
     <div class="print-controls">
-        <a href="{{ route('reports.index') }}" class="back-btn">
-            ← Back to Reports
-        </a>
-        <button onclick="window.print()" class="print-btn">
-            🖨️ Print / Save as PDF
-        </button>
+        <a href="{{ route('students.index') }}" class="back-btn">Back to Students</a>
+        <button class="print-btn" onclick="window.print()">Print Record</button>
     </div>
 
     <div class="container">
-        <!-- Header -->
         <div class="header">
             <div class="school-name">{{ $school['name'] }}</div>
-            <div class="school-address">{{ $school['address'] }}</div>
-            <div class="school-address">{{ $school['contact'] }}</div>
+            <div class="school-address">{{ $school['address'] }} &middot; {{ $school['contact'] }}</div>
             <div class="document-title">Student Discipline Record</div>
+            <p style="margin-top:8px; font-size:11pt; color:#555;">
+                Generated on {{ $generated_at }} | Document Reference: SR-{{ $student['student_id'] }}-{{ date('Ymd') }}
+            </p>
         </div>
 
-        <!-- Student Information -->
         <div class="student-info">
             <div class="info-grid">
                 <div class="info-item">
@@ -317,17 +299,16 @@
                     <span>{{ $student['section'] }}</span>
                 </div>
                 <div class="info-item">
-                    <span class="info-label">Enrollment Status:</span>
-                    <span>{{ ucfirst($student['status']) }}</span>
+                    <span class="info-label">Status:</span>
+                    <span style="text-transform: uppercase; font-weight:bold;">{{ $student['status'] }}</span>
                 </div>
                 <div class="info-item">
-                    <span class="info-label">Report Generated:</span>
-                    <span>{{ $generated_at }}</span>
+                    <span class="info-label">Report Scope:</span>
+                    <span>{{ $mode === 'all' ? 'Incidents and Attendance' : 'Incidents Only' }}</span>
                 </div>
             </div>
         </div>
 
-        <!-- Summary Statistics -->
         <div class="summary-stats">
             <div class="stat-box">
                 <div class="stat-number">{{ $summary['total_incidents'] }}</div>
@@ -347,35 +328,57 @@
             </div>
         </div>
 
-        <!-- Incidents History -->
         <h3 class="section-title">Incident History</h3>
-        @if(count($incidents) > 0)
+        @if($incidents->count() > 0)
             <table>
                 <thead>
                     <tr>
-                        <th style="width: 100px;">Date</th>
-                        <th>Description</th>
-                        <th style="width: 100px;">Severity</th>
-                        <th style="width: 100px;">Status</th>
+                        <th style="width: 110px;">Date</th>
+                        <th>Incident Details</th>
+                        <th style="width: 120px;">Severity</th>
+                        <th style="width: 120px;">Status</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($incidents as $incident)
+                        @php
+                            $statusClass = 'status-neutral';
+                            if ($incident->status === 'pending') {
+                                $statusClass = 'status-pending';
+                            } elseif (in_array($incident->status, ['approved', 'resolved', 'closed'])) {
+                                $statusClass = 'status-approved';
+                            }
+
+                            $severityLabel = strtoupper($incident->severity ?? 'low');
+                            $severityColor = '#10b981';
+                            if (($incident->severity ?? '') === 'high') {
+                                $severityColor = '#dc2626';
+                            } elseif (($incident->severity ?? '') === 'medium') {
+                                $severityColor = '#f59e0b';
+                            }
+                        @endphp
                         <tr>
-                            <td>{{ \Carbon\Carbon::parse($incident->incident_date)->format('M d, Y') }}</td>
-                            <td>{{ Str::limit($incident->description, 100) }}</td>
                             <td>
-                                @if($incident->severity === 'high')
-                                    <span style="color: #dc2626; font-weight: bold;">HIGH</span>
-                                @elseif($incident->severity === 'medium')
-                                    <span style="color: #f59e0b; font-weight: bold;">MEDIUM</span>
-                                @else
-                                    <span style="color: #10b981;">LOW</span>
-                                @endif
+                                {{ \Carbon\Carbon::parse($incident->incident_date)->format('M d, Y') }}<br>
+                                <span style="font-size:9pt; color:#666;">
+                                    {{ \Carbon\Carbon::parse($incident->incident_date)->format('l') }}
+                                </span>
                             </td>
                             <td>
-                                <span class="status-badge status-{{ $incident->status }}">
-                                    {{ ucfirst($incident->status) }}
+                                <strong>{{ $incident->category->name ?? 'Behavioral Incident' }}</strong><br>
+                                <span style="font-size:10pt; color:#555;">
+                                    {{ $incident->description }}
+                                </span><br>
+                                <span style="font-size:9pt; color:#777;">
+                                    Location: {{ $incident->location ?? 'Not specified' }}
+                                </span>
+                            </td>
+                            <td style="font-weight:bold; color: {{ $severityColor }};">
+                                {{ $severityLabel }}
+                            </td>
+                            <td>
+                                <span class="status-badge {{ $statusClass }}">
+                                    {{ strtoupper(str_replace('_', ' ', $incident->status)) }}
                                 </span>
                             </td>
                         </tr>
@@ -388,7 +391,75 @@
             </p>
         @endif
 
-        <!-- Sanctions History -->
+        @if(!empty($attendance))
+            <h3 class="section-title">Attendance Snapshot</h3>
+            <div class="summary-stats" style="grid-template-columns: repeat(4, 1fr);">
+                <div class="stat-box">
+                    <div class="stat-number">{{ $attendance['summary']['total_records'] }}</div>
+                    <div class="stat-label">Total Records</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">{{ $attendance['summary']['absent'] }}</div>
+                    <div class="stat-label">Absent</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">{{ $attendance['summary']['tardy'] }}</div>
+                    <div class="stat-label">Tardy</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">{{ $attendance['summary']['excused'] }}</div>
+                    <div class="stat-label">Excused</div>
+                </div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 110px;">Date</th>
+                        <th style="width: 100px;">Status</th>
+                        <th style="width: 100px;">Time In</th>
+                        <th>Remarks</th>
+                        <th style="width: 160px;">Recorded By</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($attendance['records'] as $record)
+                        <tr>
+                            <td>
+                                {{ \Carbon\Carbon::parse($record->date)->format('M d, Y') }}<br>
+                                <span style="font-size:9pt; color:#666;">
+                                    {{ \Carbon\Carbon::parse($record->date)->format('l') }}
+                                </span>
+                            </td>
+                            <td style="font-weight:bold; text-transform: uppercase;">
+                                {{ $record->status }}
+                            </td>
+                            <td>
+                                @if($record->time_in)
+                                    {{ \Carbon\Carbon::parse($record->time_in)->format('h:i A') }}
+                                @else
+                                    N/A
+                                @endif
+                            </td>
+                            <td>{{ $record->remarks ?: 'N/A' }}</td>
+                            <td>
+                                {{ $record->recorder->name ?? 'System' }}<br>
+                                <span style="font-size:9pt; color:#666;">
+                                    {{ $record->created_at->format('M d, Y h:i A') }}
+                                </span>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="5" style="text-align:center; font-style:italic; color:#666; padding:20px;">
+                                No attendance records were found for this student.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        @endif
+
         <h3 class="section-title">Sanctions History</h3>
         @if(count($sanctions) > 0)
             @foreach($sanctions as $sanction)
@@ -396,14 +467,14 @@
                     <div class="sanction-header">
                         {{ ucfirst($sanction->sanction_type) }} Sanction
                         @if($sanction->status === 'active')
-                            <span style="color: #dc2626;">(ACTIVE)</span>
+                            <span style="color: #dc2626;">(Active)</span>
                         @elseif($sanction->status === 'completed')
                             <span style="color: #10b981;">(Completed)</span>
                         @endif
                     </div>
                     <div class="sanction-details">
-                        <strong>Period:</strong> 
-                        {{ \Carbon\Carbon::parse($sanction->start_date)->format('M d, Y') }} - 
+                        <strong>Period:</strong>
+                        {{ \Carbon\Carbon::parse($sanction->start_date)->format('M d, Y') }} -
                         {{ $sanction->end_date ? \Carbon\Carbon::parse($sanction->end_date)->format('M d, Y') : 'Ongoing' }}
                         <br>
                         <strong>Description:</strong> {{ $sanction->description }}
@@ -416,7 +487,6 @@
             </p>
         @endif
 
-        <!-- Footer with Signatures -->
         <div class="footer">
             <div class="signatures">
                 <div class="signature-block">

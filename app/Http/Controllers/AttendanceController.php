@@ -45,7 +45,11 @@ class AttendanceController extends Controller
             ->orderBy('first_name')
             ->get();
 
-        return view('attendance.index', compact('attendanceRecords', 'students'));
+        $focusedStudent = $request->filled('student_id')
+            ? $students->firstWhere('id', (int) $request->student_id)
+            : null;
+
+        return view('attendance.index', compact('attendanceRecords', 'students', 'focusedStudent'));
     }
 
     /**

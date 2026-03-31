@@ -18,8 +18,19 @@ class AnalyticsController extends Controller
     /**
      * Show the analytics dashboard page with embedded data
      */
-    public function index()
+    public function index(Request $request)
     {
+        $filters = $request->only([
+            'grade_level',
+            'section',
+            'severity',
+            'status',
+            'date_from',
+            'date_to',
+        ]);
+
+        $limit = $request->integer('limit', 50);
+
         $data = [
             'overview' => $this->analyticsService->getOverviewStats(),
             'trends' => $this->analyticsService->getIncidentTrends(6),
@@ -32,7 +43,17 @@ class AnalyticsController extends Controller
             'performance' => $this->analyticsService->getProcessingPerformance(),
         ];
 
-        return view('admin.analytics', compact('data'));
+        $dataset = $this->analyticsService->getIncidentDataset($filters, $limit);
+        $insights = $this->buildInsightSummary($data, $dataset);
+        $interventionInsights = $this->analyticsService->generateInterventionInsights(4);
+
+        return view('admin.analytics', [
+            'data' => $data,
+            'filters' => $filters,
+            'dataset' => $dataset,
+            'insights' => $insights,
+            'interventionInsights' => $interventionInsights,
+        ]);
     }
 
     /**
@@ -165,5 +186,77 @@ class AnalyticsController extends Controller
             'success' => true,
             'message' => 'Analytics cache cleared successfully',
         ]);
+    }
+
+    /**
+     * Build narrative insights so analytics feels actionable
+     */
+    protected function buildInsightSummary(array $data, array $dataset): array
+    {
+        $categories = collect($data['categories'] ?? []);
+        $gradeLevels = collect($data['gradeLevels'] ?? []);
+        $severity = collect($data['severity'] ?? []);
+        $overview = $data['overview'] ?? [];
+        $records = collect($dataset['records'] ?? []);
+
+        $topCategory = $categories->sortByDesc('count')->first();
+        $hotGrade = $gradeLevels->sortByDesc('count')->first();
+        $severityLeader = $severity->sortByDesc('count')->first();
+        $totalSeverity = max(1, $severity->sum('count'));
+
+        $backlog = ($overview['pending_approval'] ?? 0) + ($overview['under_review'] ?? 0);
+        $processed = $overview['approved_this_month'] ?? 0;
+
+        $activeStudents = $overview['active_students'] ?? null;
+        $studentsWithIncidents = $overview['students_with_incidents'] ?? null;
+        $incidentPenetration = $activeStudents
+            ? round((($studentsWithIncidents ?? 0) / max(1, $activeStudents)) * 100, 1)
+            : null;
+
+        $insights = [
+            [
+                'title' => 'Most frequent violation',
+                'value' => $topCategory['name'] ?? null,
+                'context' => $topCategory ? ($topCategory['count'] . ' recorded cases this year') : null,
+            ],
+            [
+                'title' => 'Grade level hotspot',
+                'value' => $hotGrade['label'] ?? null,
+                'context' => $hotGrade ? ($hotGrade['count'] . ' incidents YTD') : null,
+            ],
+            [
+                'title' => 'Highest severity share',
+                'value' => isset($severityLeader['label']) ? $severityLeader['label'] : null,
+                'context' => $severityLeader
+                    ? round(($severityLeader['count'] / $totalSeverity) * 100, 1) . '% of all incidents'
+                    : null,
+            ],
+            [
+                'title' => 'Case backlog',
+                'value' => $backlog,
+                'context' => $processed > 0
+                    ? $processed . ' approvals completed this month'
+                    : 'No approvals completed yet',
+            ],
+            [
+                'title' => 'Incident reach',
+                'value' => $incidentPenetration ? ($incidentPenetration . '% of students') : null,
+                'context' => $studentsWithIncidents && $activeStudents
+                    ? $studentsWithIncidents . ' of ' . $activeStudents . ' active students'
+                    : null,
+            ],
+            [
+                'title' => 'Dataset sample',
+                'value' => $records->count() ? $records->count() . ' recent cases' : null,
+                'context' => isset($dataset['total']) ? ('Out of ' . $dataset['total'] . ' matching incidents') : null,
+            ],
+        ];
+
+        return collect($insights)
+            ->filter(function ($insight) {
+                return !empty($insight['value']);
+            })
+            ->values()
+            ->all();
     }
 }

@@ -2,58 +2,82 @@
 
 @section('content')
 <!-- Header -->
-<header class="bg-white border-b border-gray-200 px-8 py-5 flex justify-between items-center sticky top-0 z-40">
+<header class="bg-white border-b border-gray-200 px-8 py-5 flex flex-wrap gap-4 items-center justify-between sticky top-0 z-30">
     <div>
-        <h2 class="text-xl font-bold text-gray-800">Personnel Management: Advisers</h2>
-        <p class="text-xs text-gray-500 font-medium mt-0.5">Manage access and section assignments for BEU faculty</p>
+        <p class="text-[11px] uppercase font-bold tracking-[0.3em] text-emerald-600">User Management</p>
+        <h2 class="text-xl font-bold text-gray-900">Personnel Management: Advisers</h2>
+        <p class="text-xs text-gray-500 font-medium mt-0.5">Manage access, advisory coverage, and registry compliance for BEU faculty</p>
     </div>
-    <div>
-        <a href="{{ route('advisers.create') }}" class="bg-green-700 hover:bg-green-800 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-sm flex items-center gap-2">
+    <div class="flex flex-wrap gap-3 items-center">
+        <button class="px-4 py-2 border border-gray-200 text-xs font-bold text-gray-600 rounded-lg hover:bg-gray-50 transition flex items-center gap-2">
+            <i class="fa-solid fa-download text-sm"></i> Export Directory
+        </button>
+        <a href="{{ route('advisers.create') }}" class="px-5 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-semibold shadow-sm hover:bg-emerald-700 transition flex items-center gap-2">
             <i class="fa-solid fa-plus text-xs"></i> Register New Adviser
         </a>
     </div>
 </header>
 
-<div class="p-8 max-w-7xl mx-auto">
-    
+<div class="p-8 max-w-7xl mx-auto space-y-8">
     <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <!-- Total Advisers -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div class="bg-white p-6 rounded-xl border border-gray-200 card-shadow">
-            <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Total Advisers</p>
+            <div class="flex items-center justify-between mb-3">
+                <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Total Advisers</p>
+                <span class="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">Active</span>
+            </div>
             <div class="flex items-baseline gap-2">
                 <h4 class="text-4xl font-bold text-gray-900">{{ str_pad($totalAdvisers, 2, '0', STR_PAD_LEFT) }}</h4>
-                <span class="text-xs text-gray-500">Active [cite: 379]</span>
+                <span class="text-xs text-gray-500">Faculty in roster</span>
             </div>
+            <p class="text-xs text-gray-400 mt-2">Includes all homeroom advisers cleared for the current term.</p>
         </div>
 
-        <!-- Sections Covered -->
         <div class="bg-white p-6 rounded-xl border border-gray-200 card-shadow">
-            <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Sections Covered</p>
+            <div class="flex items-center justify-between mb-3">
+                <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Sections Covered</p>
+                <span class="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">JHS Dept</span>
+            </div>
             <div class="flex items-baseline gap-2">
                 <h4 class="text-4xl font-bold text-gray-900">{{ str_pad($sectionsCovered, 2, '0', STR_PAD_LEFT) }}</h4>
-                <span class="text-xs text-gray-500">JHS Dept [cite: 382]</span>
+                <span class="text-xs text-gray-500">Advisory sections</span>
             </div>
+            <p class="text-xs text-gray-400 mt-2">Updated as soon as registrar confirms class assignments.</p>
         </div>
 
-        <!-- Reports Logged -->
         <div class="bg-white p-6 rounded-xl border border-gray-200 card-shadow">
-            <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Reports Logged</p>
-            <h4 class="text-4xl font-bold text-green-600">{{ $reportsLogged }}</h4>
+            <div class="flex items-center justify-between mb-3">
+                <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Reports Logged</p>
+                <span class="text-[10px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded">This Year</span>
+            </div>
+            <div class="flex items-baseline gap-2">
+                <h4 class="text-4xl font-bold text-amber-600">{{ $reportsLogged }}</h4>
+                <span class="text-xs text-gray-500">Case updates</span>
+            </div>
+            <p class="text-xs text-gray-400 mt-2">Incident reports submitted by or assigned to advisers.</p>
+        </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="bg-white border border-gray-200 rounded-xl card-shadow px-6 py-4 flex flex-wrap gap-4 items-center justify-between">
+        <div class="relative w-full lg:w-96">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+            <input type="text" placeholder="Search by name or employee ID..." class="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-xs focus:ring-1 focus:ring-emerald-500 outline-none w-full bg-gray-50">
+        </div>
+        <div class="flex gap-2 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+            <span class="px-3 py-1 rounded-full border border-emerald-100 text-emerald-700 bg-emerald-50">Active</span>
+            <span class="px-3 py-1 rounded-full border border-gray-200">Pending Orientation</span>
+            <span class="px-3 py-1 rounded-full border border-gray-200">Missing Contact</span>
         </div>
     </div>
 
     <!-- Advisers Table -->
     <div class="bg-white rounded-xl border border-gray-200 card-shadow overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-            <div class="relative">
-                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
-                <input type="text" placeholder="Search by name or employee ID..." 
-                       class="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-xs focus:ring-1 focus:ring-green-500 outline-none w-80 bg-gray-50">
-            </div>
+            <span class="text-xs text-gray-500">Showing {{ $advisers->count() }} adviser(s)</span>
             <button class="px-4 py-2 border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 flex items-center gap-2">
-                <i class="fa-solid fa-download"></i>
-                Export List
+                <i class="fa-solid fa-bars-staggered"></i>
+                View Filters
             </button>
         </div>
 
@@ -65,7 +89,7 @@
                         <th class="px-6 py-4 text-[10px] font-bold uppercase text-gray-400 tracking-wider">Employee ID</th>
                         <th class="px-6 py-4 text-[10px] font-bold uppercase text-gray-400 tracking-wider">Handling Section</th>
                         <th class="px-6 py-4 text-[10px] font-bold uppercase text-gray-400 tracking-wider">Registry Status</th>
-                        <th class="px-6 py-4 text-[10px] font-bold uppercase text-gray-400 tracking-wider">Administrative Actions</th>
+                        <th class="px-6 py-4 text-[10px] font-bold uppercase text-gray-400 tracking-wider text-right">Administrative Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 text-sm">
@@ -73,7 +97,7 @@
                     <tr class="hover:bg-gray-50 transition-colors">
                         <td class="px-6 py-4">
                             <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold text-sm uppercase">
+                                <div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-sm uppercase">
                                     {{ substr($adviser->name, 0, 1) }}{{ substr(explode(' ', $adviser->name)[1] ?? '', 0, 1) }}
                                 </div>
                                 <div>
@@ -94,12 +118,12 @@
                             @endif
                         </td>
                         <td class="px-6 py-4">
-                            <span class="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold bg-green-50 text-green-700 border border-green-200 uppercase tracking-wide">
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wide">
                                 Verified
                             </span>
                         </td>
                         <td class="px-6 py-4">
-                            <div class="flex gap-2">
+                            <div class="flex gap-2 justify-end">
                                 <a href="{{ route('advisers.edit', $adviser) }}" class="text-blue-600 hover:text-blue-800 text-xs font-bold uppercase tracking-wide">
                                     Update Record
                                 </a>

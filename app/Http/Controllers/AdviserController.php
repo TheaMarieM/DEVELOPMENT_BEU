@@ -6,9 +6,17 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use App\Services\InterventionSuggestionService;
 
 class AdviserController extends Controller
 {
+    protected InterventionSuggestionService $interventionSuggestionService;
+
+    public function __construct(InterventionSuggestionService $interventionSuggestionService)
+    {
+        $this->interventionSuggestionService = $interventionSuggestionService;
+    }
+
     public function index()
     {
         $advisers = User::whereHas('role', function ($query) {
@@ -151,7 +159,19 @@ class AdviserController extends Controller
         $totalAbsent = $advisees->sum('absent_count');
         $totalAdvisees = $advisees->count();
 
-        return view('adviser.dashboard', compact('advisees', 'totalIncidents', 'totalTardy', 'totalAbsent', 'totalAdvisees'));
+        $insights = $this->interventionSuggestionService->getDashboardInsights(3, [
+            'grade_level' => $adviser->grade_level,
+            'section' => $adviser->section,
+        ]);
+
+        return view('adviser.dashboard', array_merge(
+            compact('advisees', 'totalIncidents', 'totalTardy', 'totalAbsent', 'totalAdvisees'),
+            [
+                'suggestions' => $insights['suggestions'],
+                'suggestionsSource' => $insights['suggestionsSource'],
+                'recentPlans' => $insights['recentPlans'],
+            ]
+        ));
     }
 
     public function showStudent(\App\Models\Student $student)
