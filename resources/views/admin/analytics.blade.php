@@ -221,27 +221,33 @@
             
             <div class="space-y-6">
                 <!-- Average Processing Time -->
-                @php $avgDays = $data['performance']['avg_processing_days'] ?? 0; @endphp
+                @php
+                    $avgDays = $data['performance']['avg_processing_days'] ?? 0;
+                    $avgWidth = min($avgDays * 10, 100);
+                @endphp
                 <div>
                     <div class="flex justify-between items-center mb-2">
                         <span class="text-sm font-medium text-gray-700">Avg. Processing Time</span>
                         <span class="text-sm font-bold text-gray-900">{{ $avgDays }} days</span>
                     </div>
                     <div class="w-full bg-gray-200 rounded-full h-2">
-                        <div class="bg-green-600 h-2 rounded-full" style="width: {{ min($avgDays * 10, 100) }}%"></div>
+                        <div class="metric-bar bg-green-600 h-2 rounded-full" data-width="{{ $avgWidth }}"></div>
                     </div>
                     <p class="text-xs text-gray-500 mt-1">Target: Under 7 days</p>
                 </div>
 
                 <!-- Cases Processed -->
-                @php $processed = $data['performance']['processed_this_month'] ?? 0; @endphp
+                @php
+                    $processed = $data['performance']['processed_this_month'] ?? 0;
+                    $processedWidth = min($processed * 5, 100);
+                @endphp
                 <div>
                     <div class="flex justify-between items-center mb-2">
                         <span class="text-sm font-medium text-gray-700">Processed This Month</span>
                         <span class="text-sm font-bold text-gray-900">{{ $processed }}</span>
                     </div>
                     <div class="w-full bg-gray-200 rounded-full h-2">
-                        <div class="bg-blue-600 h-2 rounded-full" style="width: {{ min($processed * 5, 100) }}%"></div>
+                        <div class="metric-bar bg-blue-600 h-2 rounded-full" data-width="{{ $processedWidth }}"></div>
                     </div>
                 </div>
 
@@ -469,18 +475,92 @@
 
 <!-- Chart.js loaded via Vite bundle -->
 
+<script type="application/json" id="analytics-trends-data">@json($data['trends'] ?? [])</script>
+<script type="application/json" id="analytics-categories-data">@json($data['categories'] ?? [])</script>
+<script type="application/json" id="analytics-grade-levels-data">@json($data['gradeLevels'] ?? [])</script>
+<script type="application/json" id="analytics-severity-data">@json($data['severity'] ?? [])</script>
+<script type="application/json" id="analytics-status-data">@json($data['performance']['status_distribution'] ?? [])</script>
+
 <script>
-// Embedded data from PHP
-const trendsData = @json($data['trends'] ?? []);
-const categoriesData = @json($data['categories'] ?? []);
-const gradeLevelsData = @json($data['gradeLevels'] ?? []);
-const severityData = @json($data['severity'] ?? []);
-const statusDistribution = @json($data['performance']['status_distribution'] ?? []);
+function parseJsonScript(id) {
+    var element = document.getElementById(id);
+
+    if (!element) {
+        return [];
+    }
+
+    try {
+        return JSON.parse(element.textContent || '[]');
+    } catch (error) {
+        console.error('Failed to parse analytics data for', id, error);
+        return [];
+    }
+}
+
+function applyMetricBarWidths() {
+    document.querySelectorAll('.metric-bar').forEach(function(element) {
+        var width = Number(element.dataset.width || 0);
+        element.style.width = width + '%';
+    });
+}
+
+const trendsData = parseJsonScript('analytics-trends-data');
+const categoriesData = parseJsonScript('analytics-categories-data');
+const gradeLevelsData = parseJsonScript('analytics-grade-levels-data');
+const severityData = parseJsonScript('analytics-severity-data');
+const statusDistribution = parseJsonScript('analytics-status-data');
+
+let chartInitAttempts = 0;
+const maxChartInitAttempts = 40;
+
+function loadChartJsFallback() {
+    return new Promise(function(resolve, reject) {
+        if (typeof window.Chart !== 'undefined') {
+            resolve();
+            return;
+        }
+
+        var existing = document.querySelector('script[data-chartjs-fallback="true"]');
+        if (existing) {
+            existing.addEventListener('load', function() { resolve(); }, { once: true });
+            existing.addEventListener('error', function() { reject(new Error('Chart.js fallback failed to load')); }, { once: true });
+            return;
+        }
+
+        var script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js';
+        script.async = true;
+        script.setAttribute('data-chartjs-fallback', 'true');
+        script.onload = function() { resolve(); };
+        script.onerror = function() { reject(new Error('Chart.js fallback failed to load')); };
+        document.head.appendChild(script);
+    });
+}
 
 function initCharts() {
+    applyMetricBarWidths();
+
     // Wait for Chart.js to load from Vite bundle
     if (typeof window.Chart === 'undefined') {
-        console.log('Waiting for Chart.js to load...');
+        chartInitAttempts++;
+
+        if (chartInitAttempts === 10) {
+            loadChartJsFallback()
+                .then(function() {
+                    console.log('Chart.js fallback loaded from CDN');
+                    initCharts();
+                })
+                .catch(function(error) {
+                    console.error(error.message);
+                });
+        }
+
+        if (chartInitAttempts >= maxChartInitAttempts) {
+            console.error('Chart.js is unavailable. Ensure Vite assets are built or dev server is running.');
+            return;
+        }
+
+        console.log('Waiting for Chart.js to load... attempt', chartInitAttempts);
         setTimeout(initCharts, 100);
         return;
     }

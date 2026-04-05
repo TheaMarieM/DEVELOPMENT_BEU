@@ -26,14 +26,15 @@ class SecurityHeaders
         // Enable XSS protection
         $response->headers->set('X-XSS-Protection', '1; mode=block');
         
+        $isDev = app()->environment('local') || config('app.debug');
         $devViteSources = "";
-        if (app()->environment('local')) {
-            $devViteSources = " http://127.0.0.1:5173 http://localhost:5173 http://[::1]:5173";
-        }
-
         $devViteConnect = "";
-        if (app()->environment('local')) {
-            $devViteConnect = " http://127.0.0.1:5173 http://localhost:5173 http://[::1]:5173 ws://127.0.0.1:5173 ws://localhost:5173 ws://[::1]:5173";
+        if ($isDev) {
+            $devViteSources = " http://127.0.0.1:5173 http://localhost:5173 http://[::1]:5173" .
+                " http://127.0.0.1:5174 http://localhost:5174";
+            $devViteConnect = " http://127.0.0.1:5173 http://localhost:5173 http://[::1]:5173" .
+                " ws://127.0.0.1:5173 ws://localhost:5173 ws://[::1]:5173" .
+                " http://127.0.0.1:5174 http://localhost:5174";
         }
 
         // Content Security Policy
