@@ -5,19 +5,16 @@
 <header class="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-30">
     <div class="px-8 lg:px-12 py-4 flex flex-wrap items-center justify-between gap-6">
         <div>
-            <p class="text-[11px] font-semibold uppercase tracking-[0.35em] text-gray-500">Discipline Suite</p>
             <h1 class="text-2xl font-black text-gray-900 mt-1">Discipline Chairperson Dashboard</h1>
-            <p class="text-[13px] text-gray-500 mt-1">Simple, organized view of risk, workflows, and reports.</p>
         </div>
         <div class="flex items-center gap-4">
             <div class="flex items-center gap-3 px-3 py-2 rounded-2xl border border-gray-200 bg-gray-50">
                 <div class="w-10 h-10 rounded-xl bg-gradient-to-r from-emerald-50 to-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-600">
                     <i class="fa-solid fa-user-shield"></i>
                 </div>
-                <div class="flex flex-col text-sm font-semibold text-gray-700">
+                <div class="flex flex-col text-sm font-semibold text-gray-700 min-h-[40px] justify-center">
                     <span class="uppercase text-[10px] tracking-[0.3em] text-gray-400">Signed In</span>
                     <span>{{ Auth::user()->name ?? 'Discipline Lead' }}</span>
-                    <span class="text-[11px] text-gray-500">{{ now()->format('M d, Y') }}</span>
                 </div>
             </div>
         </div>
@@ -38,7 +35,6 @@
     <div class="px-6 lg:px-10 py-2.5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
             <p class="text-[10px] uppercase tracking-[0.35em] text-emerald-50">Quick Access</p>
-            <p class="text-sm text-emerald-50/80">Jump to core tools without leaving this view.</p>
         </div>
         <div class="w-full lg:w-auto overflow-x-auto">
             <div class="flex min-w-max items-center gap-2 text-sm font-semibold">
@@ -198,7 +194,7 @@
         <div class="bg-white p-6 rounded-2xl border border-blue-100 shadow-sm">
             <div class="flex justify-between items-start mb-4">
                 <div>
-                    <p class="text-xs font-bold text-blue-400 uppercase tracking-wider">Common Incident (Q4)</p>
+                    <p class="text-xs font-bold text-blue-400 uppercase tracking-wider">Common Incident</p>
                     <h4 class="text-lg font-black text-blue-900 mt-2 leading-tight">
                         @if($mostCommonIncident)
                             {{ $mostCommonIncident->name ?? 'No data' }}
@@ -589,7 +585,7 @@
 
 </div>
 <script>
-document.addEventListener('alpine:init', () => {
+const registerStudentQuickSearch = () => {
     Alpine.data('studentQuickSearch', (endpoint) => ({
         endpoint,
         query: '',
@@ -677,6 +673,15 @@ document.addEventListener('alpine:init', () => {
             }
         },
     }));
-});
+};
+
+if (window.Alpine) {
+    registerStudentQuickSearch();
+    document.querySelectorAll('[x-data^="studentQuickSearch"]').forEach((element) => {
+        Alpine.initTree(element);
+    });
+} else {
+    document.addEventListener('alpine:init', registerStudentQuickSearch);
+}
 </script>
 @endsection

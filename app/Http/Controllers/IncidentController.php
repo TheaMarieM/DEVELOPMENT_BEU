@@ -61,11 +61,15 @@ class IncidentController extends Controller
             ->orderBy('first_name')
             ->get();
 
-        $violationCategories = ViolationCategory::with(['clauses' => function ($q) {
-                $q->where('is_active', true)
-                  ->orderBy('clause_number');
-            }])
-            ->orderBy('severity')
+                $violationCategories = ViolationCategory::with(['clauses' => function ($q) {
+                                $q->where('is_active', true)
+                                    ->orderBy('clause_number');
+                        }, 'clauses.options' => function ($q) {
+                                $q->where('is_active', true)
+                                    ->orderBy('sort_order');
+                        }])
+            ->where('name', 'like', 'Category%')
+            ->orderBy('sort_order')
             ->orderBy('name')
             ->get();
         
@@ -80,10 +84,14 @@ class IncidentController extends Controller
             ->get(['id', 'student_id', 'first_name', 'last_name', 'grade_level', 'section']);
 
         $violationCategories = ViolationCategory::with(['clauses' => function ($query) {
-                $query->where('is_active', true)
-                    ->orderBy('clause_number');
+            $query->where('is_active', true)
+                ->orderBy('clause_number');
+            }, 'clauses.options' => function ($query) {
+            $query->where('is_active', true)
+                ->orderBy('sort_order');
             }])
-            ->orderBy('severity')
+            ->where('name', 'like', 'Category%')
+            ->orderBy('sort_order')
             ->orderBy('name')
             ->get();
 
@@ -113,6 +121,7 @@ class IncidentController extends Controller
             'violation_clause_id' => 'nullable|required_unless:is_custom_violation,1|exists:violation_clauses,id',
             'custom_violation_description' => 'nullable|required_if:is_custom_violation,1|string|max:1000',
             'custom_violation_category_id' => 'nullable|required_if:is_custom_violation,1|exists:violation_categories,id',
+            'violation_clause_option_id' => 'nullable|exists:violation_clause_options,id',
             'narrative_reports' => 'nullable|array',
             'narrative_reports.*' => 'nullable|string',
             'narrative_files' => 'nullable|array',
@@ -135,6 +144,20 @@ class IncidentController extends Controller
             $categoryId = $selectedClause->violation_category_id;
         }
 
+        $selectedClauseOptionId = null;
+        if (!$isCustomViolation && $selectedClause) {
+            $optionId = $validated['violation_clause_option_id'] ?? null;
+            if ($selectedClause->options()->exists()) {
+                if (!$optionId) {
+                    return back()->withInput()->with('error', 'Please select the specific violation detail.');
+                }
+                $selectedClauseOptionId = $selectedClause->options()->where('id', $optionId)->value('id');
+                if (!$selectedClauseOptionId) {
+                    return back()->withInput()->with('error', 'Selected violation detail is invalid.');
+                }
+            }
+        }
+
         DB::beginTransaction();
         try {
             $nonStudentString = null;
@@ -153,6 +176,7 @@ class IncidentController extends Controller
                 'violation_category_id' => $categoryId,
                 'violation_clause_id' => $selectedClause?->id,
                 'custom_violation_description' => $customDescription,
+                'violation_clause_option_id' => $selectedClauseOptionId,
                 'non_student_participant' => $nonStudentString,
                 'status' => 'reported',
             ]);

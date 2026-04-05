@@ -26,14 +26,24 @@ class SecurityHeaders
         // Enable XSS protection
         $response->headers->set('X-XSS-Protection', '1; mode=block');
         
+        $devViteSources = "";
+        if (app()->environment('local')) {
+            $devViteSources = " http://127.0.0.1:5173 http://localhost:5173 http://[::1]:5173";
+        }
+
+        $devViteConnect = "";
+        if (app()->environment('local')) {
+            $devViteConnect = " http://127.0.0.1:5173 http://localhost:5173 http://[::1]:5173 ws://127.0.0.1:5173 ws://localhost:5173 ws://[::1]:5173";
+        }
+
         // Content Security Policy
-        $response->headers->set('Content-Security-Policy', 
+        $response->headers->set('Content-Security-Policy',
             "default-src 'self'; " .
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://fonts.googleapis.com; " .
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; " .
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.googleapis.com" . $devViteSources . "; " .
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com" . $devViteSources . "; " .
             "img-src 'self' data: https:; " .
             "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; " .
-            "connect-src 'self'; " .
+            "connect-src 'self'" . $devViteConnect . "; " .
             "frame-ancestors 'self';"
         );
         

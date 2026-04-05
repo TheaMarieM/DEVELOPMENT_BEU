@@ -9,23 +9,14 @@
                 <i class="fa-solid fa-clipboard-list"></i>
             </span>
             <div>
-                <p class="text-[11px] uppercase tracking-[0.35em] text-gray-400">Discipline Suite</p>
                 <h2 class="text-2xl font-black text-gray-900">Incident Management Logs</h2>
-                <p class="text-sm text-gray-500">Record, track, and manage student behavioral cases</p>
             </div>
         </div>
-        <div class="flex flex-wrap items-center gap-3 text-xs font-semibold text-gray-500">
-            <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 border border-gray-200">
-                <i class="fa-solid fa-bookmark text-gray-400"></i> Logging Protocol v2
-            </span>
-            <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 border border-gray-200">
-                <i class="fa-solid fa-clock text-gray-400"></i> Last sync {{ now()->diffForHumans() }}
-            </span>
-        </div>
+        <div class="flex flex-wrap items-center gap-3 text-xs font-semibold text-gray-500"></div>
     </div>
 </header>
 
-<div class="p-8 max-w-7xl mx-auto" x-data="{ activeTab: 'log' }">
+<div class="p-8" x-data="{ activeTab: 'log' }">
     
     <!-- Tabs Navigation -->
     <div class="flex flex-wrap gap-2 mb-6 bg-gray-50 border border-gray-200 rounded-2xl p-1">
@@ -50,7 +41,6 @@
     <div x-show="activeTab === 'entry'" class="bg-white rounded-xl border border-gray-200 card-shadow mb-8 p-8 animate-fade-in">
         <div class="flex justify-between items-center mb-6">
             <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wider">New Incident Entry</h3>
-            <p class="text-xs text-gray-400 italic">Standardized Reporting Protocol (ISO 25001)</p>
         </div>
 
         <form action="{{ route('incidents.store') }}" method="POST" enctype="multipart/form-data" id="incidentForm">
@@ -175,40 +165,79 @@
                 <div>
                     <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Violation Type (Standardized)</label>
                     <input type="hidden" name="is_custom_violation" id="quick-custom-flag" value="{{ old('is_custom_violation', 0) }}">
-                    <select name="violation_clause_id" id="quick-violation-select"
-                            class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">
-                        <option value="">Select violation...</option>
+                    <p class="text-xs font-semibold text-gray-500">Select Violation Category</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        @foreach($violationCategories->take(4) as $index => $category)
+                            @php
+                                $firstClauseId = $category->clauses->first()?->id;
+                                $labelIndex = $index + 1;
+                            @endphp
+                            <label class="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700">
+                                <input type="checkbox"
+                                       class="violation-category-choice rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                       data-clause-id="{{ $firstClauseId }}"
+                                       data-category-id="{{ $category->id }}"
+                                       data-category-name="{{ $category->name }}"
+                                       data-display-label="Category {{ $labelIndex }} Violations">
+                                <span>Category {{ $labelIndex }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                    <div id="quick-violation-picker" class="mt-3 hidden">
+                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Select Violation</label>
+                        <select name="violation_clause_id" id="quick-violation-select"
+                                class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">
+                            <option value="">Select violation...</option>
                         @foreach($violationCategories as $category)
                             @if($category->clauses->isNotEmpty())
-                                <optgroup label="{{ $category->name }} • {{ ucfirst($category->severity) }}">
+                                <optgroup label="{{ $category->name }}" data-category-id="{{ $category->id }}" data-original-label="{{ $category->name }}">
                                     @foreach($category->clauses as $clause)
-                                        <option value="{{ $clause->id }}">{{ $clause->clause_number }} — {{ $clause->description }}</option>
+                                        <option value="{{ $clause->id }}"
+                                                data-category-id="{{ $category->id }}"
+                                                data-requires-count="{{ in_array($clause->description, ['Tardiness (accumulated)', 'Absenteeism (accumulated unexcused absences)'], true) ? '1' : '0' }}"
+                                                data-has-options="{{ $clause->options->isNotEmpty() ? '1' : '0' }}">
+                                            {{ $clause->description }}
+                                        </option>
                                     @endforeach
                                 </optgroup>
                             @endif
                         @endforeach
-                    </select>
-                    <label class="flex items-center gap-2 text-[11px] text-gray-500 mt-2">
-                        <input type="checkbox" id="quick-custom-toggle" class="rounded border-gray-300 text-green-600 focus:ring-green-500" {{ old('is_custom_violation') ? 'checked' : '' }}>
-                        Violation not on the list? Type it manually.
-                    </label>
-                    <div id="quick-custom-fields" class="mt-3 space-y-3 {{ old('is_custom_violation') ? '' : 'hidden' }}">
-                        <div>
-                            <textarea name="custom_violation_description" rows="3" placeholder="Describe the violation..."
-                                      class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">{{ old('custom_violation_description') }}</textarea>
+                        </select>
+                        <div id="quick-violation-count" class="mt-3 hidden">
+                            <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Number of times</label>
+                            <input type="number" min="1" step="1" placeholder="Enter count"
+                                   class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">
                         </div>
-                        <div>
-                            <select name="custom_violation_category_id"
+                        <div id="quick-violation-suboption" class="mt-3 hidden">
+                            <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Select detail</label>
+                            <select name="violation_clause_option_id" id="quick-violation-option"
                                     class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">
-                                <option value="">Select applicable category...</option>
+                                <option value="">Select detail...</option>
                                 @foreach($violationCategories as $category)
-                                    <option value="{{ $category->id }}" {{ old('custom_violation_category_id') == $category->id ? 'selected' : '' }}>
-                                        {{ $category->name }} • {{ ucfirst($category->severity) }}
-                                    </option>
+                                    @foreach($category->clauses as $clause)
+                                        @foreach($clause->options as $option)
+                                            <option value="{{ $option->id }}" data-clause-id="{{ $clause->id }}">
+                                                {{ $option->description }}
+                                            </option>
+                                        @endforeach
+                                    @endforeach
                                 @endforeach
                             </select>
                         </div>
-                        <p class="text-[11px] text-gray-400">Custom entries remain tagged under the category you choose.</p>
+                    </div>
+                    <input type="hidden" name="custom_violation_category_id" id="quick-custom-category-id" value="">
+                    <div id="quick-custom-wrapper" class="mt-2 hidden">
+                        <label class="flex items-center gap-2 text-[11px] text-gray-500">
+                            <input type="checkbox" id="quick-custom-toggle" class="rounded border-gray-300 text-green-600 focus:ring-green-500" disabled>
+                            Violation not on the list? Type it manually.
+                        </label>
+                        <div id="quick-custom-fields" class="mt-3 space-y-3 hidden">
+                            <div>
+                                <textarea name="custom_violation_description" rows="3" placeholder="Describe the violation..."
+                                          class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">{{ old('custom_violation_description') }}</textarea>
+                            </div>
+                            <p class="text-[11px] text-gray-400">Custom entries stay under the selected category.</p>
+                        </div>
                     </div>
                 </div>
                 </div>
@@ -220,25 +249,181 @@
                         const select = document.getElementById('quick-violation-select');
                         const fields = document.getElementById('quick-custom-fields');
                         const flag = document.getElementById('quick-custom-flag');
+                        const categoryChoices = Array.from(document.querySelectorAll('.violation-category-choice'));
+                        const picker = document.getElementById('quick-violation-picker');
+                        const customWrapper = document.getElementById('quick-custom-wrapper');
+                        const optgroups = Array.from(select?.querySelectorAll('optgroup') || []);
+                        const customCategoryInput = document.getElementById('quick-custom-category-id');
+                        const countWrapper = document.getElementById('quick-violation-count');
+                        const optionWrapper = document.getElementById('quick-violation-suboption');
+                        const optionSelect = document.getElementById('quick-violation-option');
+                        let activeCategoryId = null;
+
+                        function resetCategoryUI() {
+                            activeCategoryId = null;
+                            if (picker) {
+                                picker.classList.add('hidden');
+                            }
+                            if (customWrapper) {
+                                customWrapper.classList.add('hidden');
+                            }
+                            if (toggle) {
+                                toggle.checked = false;
+                                toggle.disabled = true;
+                            }
+                            if (fields) {
+                                fields.classList.add('hidden');
+                            }
+                            if (flag) {
+                                flag.value = '0';
+                            }
+                            if (select) {
+                                select.value = '';
+                                Array.from(select.options).forEach((option) => {
+                                    option.hidden = false;
+                                });
+                            }
+                            if (countWrapper) {
+                                countWrapper.classList.add('hidden');
+                            }
+                            if (optionWrapper) {
+                                optionWrapper.classList.add('hidden');
+                            }
+                            if (optionSelect) {
+                                optionSelect.value = '';
+                            }
+                            if (customCategoryInput) {
+                                customCategoryInput.value = '';
+                            }
+                            optgroups.forEach((group) => {
+                                group.hidden = false;
+                                const originalLabel = group.getAttribute('data-original-label');
+                                if (originalLabel) {
+                                    group.label = originalLabel;
+                                }
+                            });
+                        }
 
                         function syncCustomState() {
                             if (!toggle) {
                                 return;
                             }
+                            if (!activeCategoryId) {
+                                resetCategoryUI();
+                                return;
+                            }
                             if (toggle.checked) {
-                                select.value = '';
-                                select.disabled = true;
-                                fields.classList.remove('hidden');
-                                flag.value = '1';
+                                if (fields) {
+                                    fields.classList.remove('hidden');
+                                }
+                                if (flag) {
+                                    flag.value = '1';
+                                }
+                                if (picker) {
+                                    picker.classList.add('hidden');
+                                }
+                                if (select) {
+                                    select.value = '';
+                                }
+                                if (optionWrapper) {
+                                    optionWrapper.classList.add('hidden');
+                                }
+                                if (optionSelect) {
+                                    optionSelect.value = '';
+                                }
                             } else {
-                                select.disabled = false;
-                                fields.classList.add('hidden');
-                                flag.value = '0';
+                                if (fields) {
+                                    fields.classList.add('hidden');
+                                }
+                                if (flag) {
+                                    flag.value = '0';
+                                }
+                                if (picker) {
+                                    picker.classList.remove('hidden');
+                                }
                             }
                         }
 
+                        function handleCategoryChange(selected) {
+                            categoryChoices.forEach((choice) => {
+                                if (choice !== selected) {
+                                    choice.checked = false;
+                                }
+                            });
+
+                            if (selected.checked) {
+                                activeCategoryId = selected.getAttribute('data-category-id');
+                                if (customCategoryInput) {
+                                    customCategoryInput.value = activeCategoryId;
+                                }
+                                const options = Array.from(select.options);
+                                options.forEach((option) => {
+                                    if (!option.value) {
+                                        option.hidden = false;
+                                        return;
+                                    }
+                                    option.hidden = option.getAttribute('data-category-id') !== activeCategoryId;
+                                });
+                                optgroups.forEach((group) => {
+                                    const groupCategoryId = group.getAttribute('data-category-id');
+                                    const isActive = groupCategoryId === activeCategoryId;
+                                    group.hidden = !isActive;
+                                    if (isActive) {
+                                        const displayLabel = selected.getAttribute('data-display-label');
+                                        group.label = displayLabel || group.label;
+                                    }
+                                });
+                                if (picker) {
+                                    picker.classList.remove('hidden');
+                                }
+                                if (customWrapper) {
+                                    customWrapper.classList.remove('hidden');
+                                }
+                                if (toggle) {
+                                    toggle.disabled = false;
+                                }
+                                select.value = '';
+                                if (countWrapper) {
+                                    countWrapper.classList.add('hidden');
+                                }
+                                if (optionWrapper) {
+                                    optionWrapper.classList.add('hidden');
+                                }
+                                if (optionSelect) {
+                                    optionSelect.value = '';
+                                }
+                                syncCustomState();
+                            } else {
+                                resetCategoryUI();
+                            }
+                        }
+
+                        select?.addEventListener('change', () => {
+                            const selectedOption = select.options[select.selectedIndex];
+                            const requiresCount = selectedOption?.getAttribute('data-requires-count') === '1';
+                            const hasOptions = selectedOption?.getAttribute('data-has-options') === '1';
+                            if (countWrapper) {
+                                countWrapper.classList.toggle('hidden', !requiresCount);
+                            }
+                            if (optionWrapper && optionSelect) {
+                                optionSelect.value = '';
+                                Array.from(optionSelect.options).forEach((option) => {
+                                    if (!option.value) {
+                                        option.hidden = false;
+                                        return;
+                                    }
+                                    option.hidden = option.getAttribute('data-clause-id') !== selectedOption?.value;
+                                });
+                                optionWrapper.classList.toggle('hidden', !hasOptions);
+                            }
+                        });
+
+                        categoryChoices.forEach((choice) => {
+                            choice.addEventListener('change', () => handleCategoryChange(choice));
+                        });
+
                         toggle?.addEventListener('change', syncCustomState);
-                        syncCustomState();
+                        resetCategoryUI();
                     });
                 </script>
 
@@ -246,21 +431,21 @@
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <!-- Date -->
                     <div>
-                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Date</label>
-                        <input type="date" name="incident_date" required value="{{ old('incident_date', now()->format('Y-m-d')) }}"
+                           <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Date</label>
+                           <input type="date" name="incident_date" required value="{{ old('incident_date') }}"
                                class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">
                     </div>
 
                     <!-- Time -->
                     <div>
-                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Time</label>
-                        <input type="time" name="incident_time" required value="{{ old('incident_time', now()->format('H:i')) }}"
+                           <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Time</label>
+                           <input type="time" name="incident_time" required value="{{ old('incident_time') }}"
                                class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">
                     </div>
 
                     <!-- Location -->
                     <div>
-                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Location of Incident</label>
+                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Location</label>
                         <input type="text" name="location" placeholder="e.g., Canteen, Classroom 10A" required value="{{ old('location') }}"
                                class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">
                     </div>
@@ -273,7 +458,6 @@
                     <div>
                         <label class="block text-[11px] font-bold text-red-500 uppercase tracking-wider mb-2">Mandatory Violation Summary</label>
                         <textarea name="description" rows="4" required
-                                  placeholder="Brief official summary for Principal's approval..."
                                   class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none resize-none">{{ old('description') }}</textarea>
                     </div>
 
@@ -285,7 +469,6 @@
                             <p class="text-xs text-gray-400 mb-1" id="file-name">Click to upload scanned narrative picture</p>
                             <input type="file" id="narrative_file" name="narrative_file" accept="image/*,.pdf" class="hidden" onchange="updateFileName(this)">
                         </div>
-                        <p class="text-[10px] text-gray-400 mt-2 italic">Upon submission, an automated summary report will be generated for the Principal[cite: 254].</p>
                     </div>
                 </div>
             </section>

@@ -30,6 +30,11 @@ class ViolationClause extends Model
         return $this->hasMany(Sanction::class);
     }
 
+    public function options()
+    {
+        return $this->hasMany(ViolationClauseOption::class, 'violation_clause_id');
+    }
+
     public function incidents()
     {
         return $this->hasMany(Incident::class);

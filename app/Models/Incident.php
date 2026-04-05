@@ -18,6 +18,7 @@ class Incident extends Model
         'reported_by',
         'violation_category_id',
         'violation_clause_id',
+        'violation_clause_option_id',
         'custom_violation_description',
         'status',
         'non_student_participant',
@@ -43,6 +44,11 @@ class Incident extends Model
     public function clause()
     {
         return $this->belongsTo(ViolationClause::class, 'violation_clause_id');
+    }
+
+    public function clauseOption()
+    {
+        return $this->belongsTo(\App\Models\ViolationClauseOption::class, 'violation_clause_option_id');
     }
 
     public function students()
