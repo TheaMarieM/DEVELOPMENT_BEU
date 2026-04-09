@@ -192,17 +192,64 @@
                             @if($category->clauses->isNotEmpty())
                                 <optgroup label="{{ $category->name }}" data-category-id="{{ $category->id }}" data-original-label="{{ $category->name }}">
                                     @foreach($category->clauses as $clause)
+                                        @php
+                                            $displayDescription = ($category->name === 'Category 3 Violations' && $clause->clause_number === '28')
+                                                ? 'Leaving the school without a valid gate pass issued by the Principal or Assistant principal'
+                                                : $clause->description;
+                                        @endphp
                                         <option value="{{ $clause->id }}"
                                                 data-category-id="{{ $category->id }}"
                                                 data-requires-count="{{ in_array($clause->description, ['Tardiness (accumulated)', 'Absenteeism (accumulated unexcused absences)'], true) ? '1' : '0' }}"
-                                                data-has-options="{{ $clause->options->isNotEmpty() ? '1' : '0' }}">
-                                            {{ $clause->description }}
+                                                data-has-options="{{ $clause->options->isNotEmpty() ? '1' : '0' }}"
+                                                @if($category->name === 'Category 3 Violations' && $clause->clause_number === '28')
+                                                    data-note="Clinic pass is not a valid gate pass. Pupil/student must secure a valid gate pass from the principal or assistant principal."
+                                                @endif>
+                                            {{ $displayDescription }}
                                         </option>
                                     @endforeach
                                 </optgroup>
                             @endif
                         @endforeach
                         </select>
+                        <div id="quick-custom-wrapper" class="mt-2 hidden">
+                            <label class="flex items-center gap-2 text-[11px] text-gray-500">
+                                <input type="checkbox" id="quick-custom-toggle" class="rounded border-gray-300 text-green-600 focus:ring-green-500" disabled>
+                                Violation not on the list? Type it manually.
+                            </label>
+                            <div id="quick-custom-fields" class="mt-3 space-y-3 hidden">
+                                <div>
+                                    <textarea name="custom_violation_description" rows="3" placeholder="Describe the violation..."
+                                              class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">{{ old('custom_violation_description') }}</textarea>
+                                </div>
+                                <p class="text-[11px] text-gray-400">Custom entries stay under the selected category.</p>
+                            </div>
+                        </div>
+                        <p id="quick-violation-note" class="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 hidden"></p>
+                        <div id="quick-violation-offense" class="mt-3 hidden">
+                            <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Offense Level</label>
+                            <div class="space-y-2">
+                                <label class="flex items-center gap-2 text-sm text-gray-700">
+                                    <input type="checkbox" name="offense_level[]" value="first" class="offense-choice rounded border-gray-300 text-green-600 focus:ring-green-500">
+                                    First Offense
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-gray-700">
+                                    <input type="checkbox" name="offense_level[]" value="second" class="offense-choice rounded border-gray-300 text-green-600 focus:ring-green-500">
+                                    Second Offense
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-gray-700">
+                                    <input type="checkbox" name="offense_level[]" value="third" class="offense-choice rounded border-gray-300 text-green-600 focus:ring-green-500">
+                                    Third Offense
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-gray-700">
+                                    <input type="checkbox" name="offense_level[]" value="fourth" class="offense-choice rounded border-gray-300 text-green-600 focus:ring-green-500">
+                                    Fourth Offense
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-gray-700">
+                                    <input type="checkbox" name="offense_level[]" value="fifth" class="offense-choice rounded border-gray-300 text-green-600 focus:ring-green-500">
+                                    Fifth Offense
+                                </label>
+                            </div>
+                        </div>
                         <div id="quick-violation-count" class="mt-3 hidden">
                             <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Number of times</label>
                             <input type="number" min="1" step="1" placeholder="Enter count"
@@ -226,19 +273,6 @@
                         </div>
                     </div>
                     <input type="hidden" name="custom_violation_category_id" id="quick-custom-category-id" value="">
-                    <div id="quick-custom-wrapper" class="mt-2 hidden">
-                        <label class="flex items-center gap-2 text-[11px] text-gray-500">
-                            <input type="checkbox" id="quick-custom-toggle" class="rounded border-gray-300 text-green-600 focus:ring-green-500" disabled>
-                            Violation not on the list? Type it manually.
-                        </label>
-                        <div id="quick-custom-fields" class="mt-3 space-y-3 hidden">
-                            <div>
-                                <textarea name="custom_violation_description" rows="3" placeholder="Describe the violation..."
-                                          class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">{{ old('custom_violation_description') }}</textarea>
-                            </div>
-                            <p class="text-[11px] text-gray-400">Custom entries stay under the selected category.</p>
-                        </div>
-                    </div>
                 </div>
                 </div>
             </section>
@@ -257,7 +291,25 @@
                         const countWrapper = document.getElementById('quick-violation-count');
                         const optionWrapper = document.getElementById('quick-violation-suboption');
                         const optionSelect = document.getElementById('quick-violation-option');
+                        const note = document.getElementById('quick-violation-note');
+                        const offenseWrapper = document.getElementById('quick-violation-offense');
+                        const offenseChoices = Array.from(offenseWrapper?.querySelectorAll('.offense-choice') || []);
                         let activeCategoryId = null;
+
+                        function updateViolationNote() {
+                            if (!note || !select) {
+                                return;
+                            }
+                            const selectedOption = select.options[select.selectedIndex];
+                            const message = selectedOption?.getAttribute('data-note');
+                            if (message) {
+                                note.textContent = message;
+                                note.classList.remove('hidden');
+                            } else {
+                                note.textContent = '';
+                                note.classList.add('hidden');
+                            }
+                        }
 
                         function resetCategoryUI() {
                             activeCategoryId = null;
@@ -281,6 +333,16 @@
                                 select.value = '';
                                 Array.from(select.options).forEach((option) => {
                                     option.hidden = false;
+                                });
+                            }
+                            if (note) {
+                                note.textContent = '';
+                                note.classList.add('hidden');
+                            }
+                            if (offenseWrapper) {
+                                offenseWrapper.classList.add('hidden');
+                                offenseChoices.forEach((input) => {
+                                    input.checked = false;
                                 });
                             }
                             if (countWrapper) {
@@ -325,6 +387,13 @@
                                 if (select) {
                                     select.value = '';
                                 }
+                                updateViolationNote();
+                                if (offenseWrapper) {
+                                    offenseWrapper.classList.add('hidden');
+                                    offenseChoices.forEach((input) => {
+                                        input.checked = false;
+                                    });
+                                }
                                 if (optionWrapper) {
                                     optionWrapper.classList.add('hidden');
                                 }
@@ -341,6 +410,7 @@
                                 if (picker) {
                                     picker.classList.remove('hidden');
                                 }
+                                updateViolationNote();
                             }
                         }
 
@@ -392,6 +462,10 @@
                                 if (optionSelect) {
                                     optionSelect.value = '';
                                 }
+                                if (customWrapper) {
+                                    customWrapper.classList.remove('hidden');
+                                }
+                                updateViolationNote();
                                 syncCustomState();
                             } else {
                                 resetCategoryUI();
@@ -402,6 +476,7 @@
                             const selectedOption = select.options[select.selectedIndex];
                             const requiresCount = selectedOption?.getAttribute('data-requires-count') === '1';
                             const hasOptions = selectedOption?.getAttribute('data-has-options') === '1';
+                            const hasSelection = Boolean(selectedOption?.value);
                             if (countWrapper) {
                                 countWrapper.classList.toggle('hidden', !requiresCount);
                             }
@@ -416,14 +491,46 @@
                                 });
                                 optionWrapper.classList.toggle('hidden', !hasOptions);
                             }
+                            if (offenseWrapper) {
+                                offenseWrapper.classList.toggle('hidden', !hasSelection);
+                            }
+                            if (customWrapper) {
+                                customWrapper.classList.toggle('hidden', hasSelection);
+                            }
+                            updateViolationNote();
+                        });
+
+                        select?.addEventListener('focus', () => {
+                            if (!select) {
+                                return;
+                            }
+                            const selectedOption = select.options[select.selectedIndex];
+                            const hasSelection = Boolean(selectedOption?.value);
+                            if (customWrapper) {
+                                customWrapper.classList.toggle('hidden', hasSelection);
+                            }
                         });
 
                         categoryChoices.forEach((choice) => {
                             choice.addEventListener('change', () => handleCategoryChange(choice));
                         });
 
+                        offenseChoices.forEach((choice) => {
+                            choice.addEventListener('change', () => {
+                                if (!choice.checked) {
+                                    return;
+                                }
+                                offenseChoices.forEach((other) => {
+                                    if (other !== choice) {
+                                        other.checked = false;
+                                    }
+                                });
+                            });
+                        });
+
                         toggle?.addEventListener('change', syncCustomState);
                         resetCategoryUI();
+                        updateViolationNote();
                     });
                 </script>
 

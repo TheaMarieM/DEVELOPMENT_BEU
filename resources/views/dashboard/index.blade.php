@@ -99,23 +99,6 @@
             </div>
         </div>
 
-        <div class="flex flex-wrap gap-2 mt-4 text-xs font-semibold text-emerald-700">
-            @foreach($studentSearchPresets as $preset)
-                <button type="button" class="px-3 py-1.5 rounded-full border border-emerald-100 bg-emerald-50 hover:bg-emerald-100 transition" x-on:click="applyPreset('{{ $preset['value'] }}')">
-                    {{ $preset['label'] }}
-                </button>
-            @endforeach
-        </div>
-
-        <div class="mt-3" x-show="recentTerms.length" x-cloak>
-            <p class="text-[11px] font-semibold uppercase tracking-[0.35em] text-gray-400 mb-2">Recent searches</p>
-            <div class="flex flex-wrap gap-2">
-                <template x-for="term in recentTerms" :key="term">
-                    <button type="button" class="px-3 py-1.5 rounded-full border border-gray-200 bg-white text-xs font-semibold text-gray-600 hover:bg-gray-50" x-text="term" @click="applyPreset(term)"></button>
-                </template>
-            </div>
-        </div>
-
         <div class="relative mt-4" x-show="open" x-cloak>
             <div class="absolute z-30 w-full bg-white border border-emerald-100 rounded-2xl shadow-2xl overflow-hidden" x-on:click.away="closePanel()" x-transition>
                 <template x-if="results.length === 0 && !loading">
@@ -244,9 +227,7 @@
     <section id="intervention-insights" class="bg-white rounded-3xl border border-emerald-100 shadow-sm p-8">
         <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
             <div>
-                <p class="text-xs font-bold text-emerald-600 uppercase tracking-[0.3em]">Targeted Support</p>
-                <h3 class="text-2xl font-black text-gray-900 mt-1">Intervention Insights</h3>
-                <p class="text-sm text-gray-500 mt-1">Surface risks, decide on a plan, and let leadership see the same timeline.</p>
+                <h3 class="text-2xl font-black text-gray-900 mt-1">Action Plan Suggestions</h3>
             </div>
             <a href="{{ route('admin.analytics') }}" class="px-4 py-2 text-sm font-semibold text-emerald-700 bg-white border border-emerald-100 rounded-xl hover:bg-emerald-50 transition-all">View Full Analytics</a>
         </div>
@@ -255,10 +236,6 @@
             <div class="space-y-4">
                 <div class="flex items-center justify-between">
                     <p class="text-xs font-semibold tracking-[0.3em] text-gray-500 uppercase">Actionable Plans</p>
-                    <span class="inline-flex items-center gap-2 text-[11px] font-bold px-3 py-1 rounded-full {{ $suggestionsSource === 'analytics' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : ($suggestionsSource === 'manual' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-gray-100 text-gray-500 border border-gray-200') }}">
-                        <i class="fa-solid fa-wave-square"></i>
-                        {{ ucfirst($suggestionsSource) }} source
-                    </span>
                 </div>
 
                 @if($suggestionsSource === 'none')
@@ -301,18 +278,10 @@
                                             <p class="text-sm font-black text-gray-900 mt-1">{{ $incidentLabel }}</p>
                                             <p class="text-xs text-gray-500 font-semibold">{{ $eventCount }} flagged events in the last cycle</p>
                                         </div>
-                                        <span class="inline-flex items-center gap-1 text-xs font-semibold {{ $persisted ? 'text-emerald-700 bg-emerald-50 border border-emerald-100' : 'text-indigo-700 bg-indigo-50 border border-indigo-100' }} px-2.5 py-1 rounded-full">
-                                            <i class="fa-solid {{ $persisted ? 'fa-clipboard-check' : 'fa-wand-magic-sparkles' }} text-[10px]"></i>
-                                            {{ $persisted ? 'Manual Insight' : 'Analytics Insight' }}
-                                        </span>
                                     </div>
                                     <p class="text-sm text-gray-700 leading-relaxed mt-3">{{ $suggestion->suggestion }}</p>
                                 </div>
                                 <div class="rounded-2xl bg-white/70 border border-emerald-100 p-4 flex flex-col gap-3">
-                                    <div class="text-[11px] uppercase tracking-[0.2em] text-gray-400 font-semibold">
-                                        Window: {{ \Illuminate\Support\Carbon::parse($analysisStart)->format('M d') }} – {{ \Illuminate\Support\Carbon::parse($analysisEnd)->format('M d, Y') }}
-                                    </div>
-
                                     @if($persisted)
                                         <div class="flex flex-wrap gap-4 text-[12px] font-semibold text-gray-500">
                                             <span class="inline-flex items-center gap-1"><i class="fa-solid fa-user-tag text-emerald-500 text-[10px]"></i> Owner: {{ $assignmentOwner ?? 'Not assigned' }}</span>
@@ -363,8 +332,7 @@
 
             <div class="space-y-4">
                 <div class="bg-gradient-to-br from-green-900 to-emerald-700 text-white rounded-2xl shadow-sm p-6">
-                    <p class="text-xs font-bold uppercase tracking-[0.3em] text-emerald-100">System Snapshot</p>
-                    <h4 class="text-lg font-black leading-tight mt-1">Leadership Pulse</h4>
+                    <h4 class="text-lg font-black leading-tight mt-1">Overview</h4>
                     <div class="mt-5 grid grid-cols-2 gap-4 text-sm">
                         <div>
                             <p class="text-[11px] uppercase tracking-[0.3em] text-emerald-200">Incidents This Month</p>
@@ -390,7 +358,6 @@
                 </div>
 
                 <div class="bg-white border border-emerald-100 rounded-2xl shadow-sm p-6">
-                    <p class="text-xs font-bold text-gray-500 uppercase tracking-[0.3em]">Plan Timeline</p>
                     <h4 class="text-lg font-black text-gray-900 mt-1">Recent Adopted Plans</h4>
 
                     <div class="mt-4 space-y-4">
@@ -435,24 +402,28 @@
     </section>
 
     <!-- Recent Incidents Table -->
-    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm relative z-10">
+    <div id="recent-incidents" class="bg-white rounded-2xl border border-gray-200 shadow-sm relative z-10">
         <div class="px-7 py-6 bg-gray-50 border-b border-gray-200 flex justify-between items-center rounded-t-xl">
             <div>
                 <h3 class="text-xl font-black text-gray-900">Recent Behavioral Incidents</h3>
-                <p class="text-xs text-gray-600 mt-1">Track and manage student incidents effectively</p>
             </div>
-            <div class="relative" x-data="{ showFilters: {{ request()->has('grade_level') || request()->has('section') ? 'true' : 'false' }} }">
+            @php
+                $filtersApplied = request()->has('grade_level') || request()->has('section');
+            @endphp
+            <div class="relative" x-data="{ showFilters: false }">
                 <div class="flex gap-3 items-center">
-                    <form action="{{ route('dashboard') }}" method="GET" class="relative">
+                    <form action="{{ route('dashboard') }}#recent-incidents" method="GET" class="relative">
                         @if(request('grade_level')) <input type="hidden" name="grade_level" value="{{ request('grade_level') }}"> @endif
                         @if(request('section')) <input type="hidden" name="section" value="{{ request('section') }}"> @endif
                         <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-gray-400"></i>
                         <input type="text" name="search" value="{{ request('search') }}" placeholder="Search records..." 
                                class="pl-11 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-green-600 focus:border-transparent outline-none w-64 bg-white font-medium shadow-sm">
                     </form>
-                    <button @click="showFilters = !showFilters" class="px-5 py-3 border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors bg-white shadow-sm flex items-center gap-2">
+                    <button @click="showFilters = !showFilters" class="px-5 py-3 border-2 rounded-xl text-sm font-bold transition-colors shadow-sm flex items-center gap-2 {{ $filtersApplied ? 'border-green-300 bg-green-50 text-green-800 hover:bg-green-100' : 'border-gray-200 text-gray-700 hover:bg-gray-50 bg-white' }}">
                         <i class="fa-solid fa-sliders text-green-700"></i> Filters
-                        <span x-show="showFilters" class="hidden sm:inline text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded ml-1">On</span>
+                        @if($filtersApplied)
+                            <span class="hidden sm:inline text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded ml-1">On</span>
+                        @endif
                     </button>
                 </div>
                 
@@ -469,12 +440,12 @@
                         <button @click="showFilters = false" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark"></i></button>
                     </div>
 
-                    <form action="{{ route('dashboard') }}" method="GET" class="space-y-4">
+                    <form action="{{ route('dashboard') }}#recent-incidents" method="GET" class="space-y-4" x-on:submit="showFilters = false">
                         @if(request('search')) <input type="hidden" name="search" value="{{ request('search') }}"> @endif
                         
                         <div>
                             <label class="text-xs font-bold text-gray-500 uppercase block mb-1.5">Grade Level</label>
-                            <select name="grade_level" class="block w-full border-gray-200 rounded-lg text-sm focus:ring-green-500 focus:border-green-500 bg-gray-50/50">
+                            <select name="grade_level" class="block w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-green-500 focus:border-green-500 bg-gray-50/50">
                                 <option value="">All Levels</option>
                                 <option value="7" {{ request('grade_level') == '7' ? 'selected' : '' }}>Grade 7</option>
                                 <option value="8" {{ request('grade_level') == '8' ? 'selected' : '' }}>Grade 8</option>
@@ -487,12 +458,12 @@
                         
                         <div>
                             <label class="text-xs font-bold text-gray-500 uppercase block mb-1.5">Section</label>
-                            <input type="text" name="section" value="{{ request('section') }}" placeholder="e.g. St. Paul" class="block w-full border-gray-200 rounded-lg text-sm focus:ring-green-500 focus:border-green-500 bg-gray-50/50">
+                            <input type="text" name="section" value="{{ request('section') }}" placeholder="e.g. St. Paul" class="block w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-green-500 focus:border-green-500 bg-gray-50/50">
                         </div>
 
                         <div class="flex gap-2 pt-2">
                             <button type="submit" class="flex-1 bg-green-700 hover:bg-green-800 text-white py-2.5 rounded-lg text-xs font-bold transition-all shadow-md shadow-green-900/10">Apply Filters</button>
-                            <a href="{{ route('dashboard') }}" class="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-xs font-bold transition-all text-center">Clear</a>
+                            <a href="{{ route('dashboard') }}#recent-incidents" class="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-xs font-bold transition-all text-center">Clear</a>
                         </div>
                     </form>
                 </div>
@@ -525,7 +496,9 @@
                                 N/A
                             @endif
                         </td>
-                        <td class="px-6 py-4 text-gray-700 font-semibold">{{ $incident->category->name ?? 'N/A' }}</td>
+                        <td class="px-6 py-4 text-gray-700 font-semibold">
+                            {{ $incident->clause?->description ?? $incident->custom_violation_description ?? $incident->category->name ?? 'N/A' }}
+                        </td>
                         <td class="px-6 py-4 text-gray-600">{{ $incident->reporter->name ?? 'N/A' }}</td>
                         <td class="px-6 py-4">
                             @if($incident->status === 'pending_approval')
@@ -579,6 +552,11 @@
                 </tbody>
             </table>
         </div>
+        @if($recentIncidents->hasPages())
+            <div class="px-6 py-4 border-t border-gray-100 bg-white">
+                {{ $recentIncidents->fragment('recent-incidents')->links() }}
+            </div>
+        @endif
     </div>
 
     <!-- Spacer removed for previous insights block -->

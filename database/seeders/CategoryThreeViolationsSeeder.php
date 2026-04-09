@@ -70,7 +70,7 @@ class CategoryThreeViolationsSeeder extends Seeder
             ['clause_number' => '25', 'description' => 'Tampering with test scores'],
             ['clause_number' => '26', 'description' => 'Possession of any gambling paraphernalia'],
             ['clause_number' => '27', 'description' => 'Any form of gambling in the campus and/or its immediate vicinity'],
-            ['clause_number' => '28', 'description' => 'Leaving the school without a valid gate pass issued by the Principal or Assistant principal (note: clinic pass is not a valid gate pass. pupil/student has to secure a valid gate pass from the principal or assistant principal)'],
+            ['clause_number' => '28', 'description' => 'Leaving the school without a valid gate pass issued by the Principal or Assistant principal'],
             ['clause_number' => '29', 'description' => 'Willful insubordination'],
             ['clause_number' => '30', 'description' => 'Deception of school authorities'],
             ['clause_number' => '31', 'description' => 'Withholding information during formal investigation'],

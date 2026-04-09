@@ -69,21 +69,24 @@ class DashboardController extends Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
-                $q->where('description', 'like', "%{$search}%")
-                  ->orWhereHas('students', function($subQ) use ($search) {
+                $q->orWhereHas('students', function($subQ) use ($search) {
                       $subQ->where('first_name', 'like', "%{$search}%")
                            ->orWhere('last_name', 'like', "%{$search}%")
                            ->orWhere('students.student_id', 'like', "%{$search}%");
                   })
                   ->orWhereHas('category', function($subQ) use ($search) {
                       $subQ->where('name', 'like', "%{$search}%");
-                  });
+                  })
+                  ->orWhereHas('clause', function($subQ) use ($search) {
+                      $subQ->where('description', 'like', "%{$search}%");
+                  })
+                  ->orWhere('custom_violation_description', 'like', "%{$search}%");
             });
         }
 
         $recentIncidents = $query->orderBy('incident_date', 'desc')
-            ->take(20)
-            ->get();
+            ->paginate(10)
+            ->withQueryString();
 
         $mostCommonIncident = $commonIncident?->category;
 

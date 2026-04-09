@@ -29,191 +29,544 @@
             </div>
         @endif
 
-        <form action="{{ route('incidents.store') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
+        <form action="{{ route('incidents.store') }}" method="POST" enctype="multipart/form-data" class="space-y-6" id="incidentForm" data-selected-student="{{ $selectedStudentId ?? '' }}">
             @csrf
+            <section class="bg-gray-50 border border-gray-200 rounded-2xl p-6 mb-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Involved Parties -->
+                    <div class="relative">
+                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Involved Parties</label>
 
-            <!-- Incident Details Card -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="px-6 py-4 bg-slate-50 border-b border-slate-200">
-                    <h3 class="font-bold text-slate-700 flex items-center gap-2">
-                        <i class="fa-solid fa-circle-info text-green-600"></i> Incident Details
-                    </h3>
-                </div>
-                <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Date & Time -->
+                        <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-3">
+                            <select id="studentSelectSimple" class="w-full px-3 py-2 border border-gray-200 rounded text-sm mb-2">
+                                <option value="">Select a student...</option>
+                                @foreach($students as $student)
+                                    <option value="{{ $student->id }}">{{ $student->last_name }}, {{ $student->first_name }} (Grade {{ $student->grade_level }} - {{ $student->section }})</option>
+                                @endforeach
+                            </select>
+                            <button type="button" onclick="addStudentSimple()" class="w-full px-4 py-2 bg-green-600 text-white rounded text-sm font-bold hover:bg-green-700">
+                                <i class="fa-solid fa-plus mr-1"></i> Add Student
+                            </button>
+                        </div>
+
+                        <div id="selectedStudentsList" class="space-y-2 mb-3"></div>
+                        <div id="studentsInputContainer"></div>
+                    </div>
+
+                    <!-- Violation Type -->
                     <div>
-                        <x-input-label for="incident_date" value="Date & Time" />
-                        <input type="datetime-local" id="incident_date" name="incident_date" class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-green-500" required value="{{ old('incident_date') }}">
-                        <x-input-error :messages="$errors->get('incident_date')" class="mt-2" />
-                    </div>
-
-                    <!-- Location -->
-                    <div>
-                        <x-input-label for="location" value="Location" />
-                        <x-text-input id="location" class="block w-full mt-1" type="text" name="location" :value="old('location')" required placeholder="e.g. Canteen, Hallway, Classroom A-101" />
-                        <x-input-error :messages="$errors->get('location')" class="mt-2" />
-                    </div>
-
-                    <!-- Description -->
-                    <div class="md:col-span-2">
-                        <x-input-label for="description" value="Incident Description" />
-                        <textarea id="description" name="description" rows="3" class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-green-500" placeholder="Provide a detailed description of the incident..." required>{{ old('description') }}</textarea>
-                        <x-input-error :messages="$errors->get('description')" class="mt-2" />
-                    </div>
-
-                    <!-- Violation Selection -->
-                    <div class="md:col-span-2">
-                        <x-input-label for="violation_clause_id" value="Violation (Standardized)" />
-                        <input type="hidden" name="is_custom_violation" id="full-custom-flag" value="{{ old('is_custom_violation', 0) }}">
-                        <select id="violation_clause_id" name="violation_clause_id" class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-green-500">
-                            <option value="">Select a violation...</option>
+                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Violation Type (Standardized)</label>
+                        <input type="hidden" name="is_custom_violation" id="quick-custom-flag" value="{{ old('is_custom_violation', 0) }}">
+                        <p class="text-xs font-semibold text-gray-500">Select Violation Category</p>
+                        <div class="grid grid-cols-2 gap-2">
+                            @foreach($violationCategories->take(4) as $index => $category)
+                                @php
+                                    $firstClauseId = $category->clauses->first()?->id;
+                                    $labelIndex = $index + 1;
+                                @endphp
+                                <label class="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700">
+                                    <input type="checkbox"
+                                           class="violation-category-choice rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                           data-clause-id="{{ $firstClauseId }}"
+                                           data-category-id="{{ $category->id }}"
+                                           data-category-name="{{ $category->name }}"
+                                           data-display-label="Category {{ $labelIndex }} Violations">
+                                    <span>Category {{ $labelIndex }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                        <div id="quick-violation-picker" class="mt-3 hidden">
+                            <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Select Violation</label>
+                            <select name="violation_clause_id" id="quick-violation-select"
+                                    class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">
+                                <option value="">Select violation...</option>
                             @foreach($violationCategories as $category)
                                 @if($category->clauses->isNotEmpty())
-                                    <optgroup label="{{ $category->name }} • {{ ucfirst($category->severity) }}">
+                                    <optgroup label="{{ $category->name }}" data-category-id="{{ $category->id }}" data-original-label="{{ $category->name }}">
                                         @foreach($category->clauses as $clause)
-                                            <option value="{{ $clause->id }}" {{ old('violation_clause_id') == $clause->id ? 'selected' : '' }}>
-                                                {{ $clause->clause_number }} — {{ $clause->description }}
+                                            @php
+                                                $displayDescription = ($category->name === 'Category 3 Violations' && $clause->clause_number === '28')
+                                                    ? 'Leaving the school without a valid gate pass issued by the Principal or Assistant principal'
+                                                    : $clause->description;
+                                            @endphp
+                                            <option value="{{ $clause->id }}"
+                                                    data-category-id="{{ $category->id }}"
+                                                    data-requires-count="{{ in_array($clause->description, ['Tardiness (accumulated)', 'Absenteeism (accumulated unexcused absences)'], true) ? '1' : '0' }}"
+                                                    data-has-options="{{ $clause->options->isNotEmpty() ? '1' : '0' }}"
+                                                    @if($category->name === 'Category 3 Violations' && $clause->clause_number === '28')
+                                                        data-note="Clinic pass is not a valid gate pass. Pupil/student must secure a valid gate pass from the principal or assistant principal."
+                                                    @endif>
+                                                {{ $displayDescription }}
                                             </option>
                                         @endforeach
                                     </optgroup>
                                 @endif
                             @endforeach
-                        </select>
-                        <label class="flex items-center gap-2 text-xs text-slate-500 mt-2">
-                            <input type="checkbox" id="full-custom-toggle" class="rounded border-gray-300 text-green-600 focus:ring-green-500" {{ old('is_custom_violation') ? 'checked' : '' }}>
-                            Violation not on the list? Capture it manually.
-                        </label>
-                        <div id="full-custom-fields" class="mt-3 space-y-3 {{ old('is_custom_violation') ? '' : 'hidden' }}">
-                            <div>
-                                <textarea name="custom_violation_description" rows="3" class="block w-full border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-green-500" placeholder="Describe the violation...">{{ old('custom_violation_description') }}</textarea>
-                                <x-input-error :messages="$errors->get('custom_violation_description')" class="mt-2" />
+                            </select>
+                            <div id="quick-custom-wrapper" class="mt-2 hidden">
+                                <label class="flex items-center gap-2 text-[11px] text-gray-500">
+                                    <input type="checkbox" id="quick-custom-toggle" class="rounded border-gray-300 text-green-600 focus:ring-green-500" disabled>
+                                    Violation not on the list? Type it manually.
+                                </label>
+                                <div id="quick-custom-fields" class="mt-3 space-y-3 hidden">
+                                    <div>
+                                        <textarea name="custom_violation_description" rows="3" placeholder="Describe the violation..."
+                                                  class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">{{ old('custom_violation_description') }}</textarea>
+                                    </div>
+                                    <p class="text-[11px] text-gray-400">Custom entries stay under the selected category.</p>
+                                </div>
                             </div>
-                            <div>
-                                <select name="custom_violation_category_id" class="block w-full border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-green-500">
-                                    <option value="">Select applicable category...</option>
+                            <p id="quick-violation-note" class="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 hidden"></p>
+                            <div id="quick-violation-offense" class="mt-3 hidden">
+                                <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Offense Level</label>
+                                <div class="space-y-2">
+                                    <label class="flex items-center gap-2 text-sm text-gray-700">
+                                        <input type="checkbox" name="offense_level[]" value="first" class="offense-choice rounded border-gray-300 text-green-600 focus:ring-green-500">
+                                        First Offense
+                                    </label>
+                                    <label class="flex items-center gap-2 text-sm text-gray-700">
+                                        <input type="checkbox" name="offense_level[]" value="second" class="offense-choice rounded border-gray-300 text-green-600 focus:ring-green-500">
+                                        Second Offense
+                                    </label>
+                                    <label class="flex items-center gap-2 text-sm text-gray-700">
+                                        <input type="checkbox" name="offense_level[]" value="third" class="offense-choice rounded border-gray-300 text-green-600 focus:ring-green-500">
+                                        Third Offense
+                                    </label>
+                                    <label class="flex items-center gap-2 text-sm text-gray-700">
+                                        <input type="checkbox" name="offense_level[]" value="fourth" class="offense-choice rounded border-gray-300 text-green-600 focus:ring-green-500">
+                                        Fourth Offense
+                                    </label>
+                                    <label class="flex items-center gap-2 text-sm text-gray-700">
+                                        <input type="checkbox" name="offense_level[]" value="fifth" class="offense-choice rounded border-gray-300 text-green-600 focus:ring-green-500">
+                                        Fifth Offense
+                                    </label>
+                                </div>
+                            </div>
+                            <div id="quick-violation-count" class="mt-3 hidden">
+                                <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Number of times</label>
+                                <input type="number" min="1" step="1" placeholder="Enter count"
+                                       class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">
+                            </div>
+                            <div id="quick-violation-suboption" class="mt-3 hidden">
+                                <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Select detail</label>
+                                <select name="violation_clause_option_id" id="quick-violation-option"
+                                        class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">
+                                    <option value="">Select detail...</option>
                                     @foreach($violationCategories as $category)
-                                        <option value="{{ $category->id }}" {{ old('custom_violation_category_id') == $category->id ? 'selected' : '' }}>
-                                            {{ $category->name }} • {{ ucfirst($category->severity) }}
-                                        </option>
+                                        @foreach($category->clauses as $clause)
+                                            @foreach($clause->options as $option)
+                                                <option value="{{ $option->id }}" data-clause-id="{{ $clause->id }}">
+                                                    {{ $option->description }}
+                                                </option>
+                                            @endforeach
+                                        @endforeach
                                     @endforeach
                                 </select>
-                                <x-input-error :messages="$errors->get('custom_violation_category_id')" class="mt-2" />
                             </div>
-                            <p class="text-[11px] text-slate-500">Custom entries stay linked to the category you pick so analytics remain accurate.</p>
                         </div>
-                        <x-input-error :messages="$errors->get('violation_clause_id')" class="mt-2" />
+                        <input type="hidden" name="custom_violation_category_id" id="quick-custom-category-id" value="">
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- Involved Students Section -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden" x-data="studentManager()" data-selected-student="{{ $selectedStudentId ?? '' }}">
-                <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                    <h3 class="font-bold text-slate-700 flex items-center gap-2">
-                        <i class="fa-solid fa-users-viewfinder text-green-600"></i> Involved Students
-                    </h3>
-                    <button type="button" @click="addStudent()" class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg font-bold transition-colors">
-                        <i class="fa-solid fa-plus mr-1"></i> Add Student
-                    </button>
+            <section class="bg-white border border-gray-200 rounded-2xl p-6 mb-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Date</label>
+                        <input type="date" name="incident_date" required value="{{ old('incident_date') }}"
+                               class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Time</label>
+                        <input type="time" name="incident_time" required value="{{ old('incident_time') }}"
+                               class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Location</label>
+                        <input type="text" name="location" placeholder="e.g., Canteen, Classroom 10A" required value="{{ old('location') }}"
+                               class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">
+                    </div>
                 </div>
-                
-                <div class="p-6 space-y-4">
-                    <template x-for="(student, index) in students" :key="student.id">
-                        <div class="p-4 border border-slate-200 rounded-xl bg-slate-50 relative group">
-                            <button type="button" @click="removeStudent(index)" class="absolute top-2 right-2 text-slate-400 hover:text-red-500 transition-colors" x-show="students.length > 1">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
+            </section>
 
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <!-- Student Selection -->
-                                <div class="md:col-span-2">
-                                    <label class="block font-medium text-xs text-gray-700 mb-1">Select Student</label>
-                                    <select :name="'students[' + index + ']" x-model="students[index].value" class="block w-full border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-green-500 text-sm" required>
-                                        <option value="">Choose a student...</option>
-                                        @foreach($students as $s)
-                                            <option value="{{ $s->id }}">{{ $s->last_name }}, {{ $s->first_name }} ({{ $s->grade_level }}-{{ $s->section }})</option>
-                                        @endforeach
-                                    </select>
-                                </div>
+            <section class="bg-white border border-gray-200 rounded-2xl p-6 mb-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-[11px] font-bold text-red-500 uppercase tracking-wider mb-2">Mandatory Violation Summary</label>
+                        <textarea name="description" rows="4" required
+                                  class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none resize-none">{{ old('description') }}</textarea>
+                    </div>
 
-                                <!-- Narrative Report -->
-                                <div>
-                                    <label class="block font-medium text-xs text-gray-700 mb-1">Narrative Report</label>
-                                    <textarea :name="'narrative_reports[' + index + ']'" rows="3" class="block w-full border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-green-500 text-sm" placeholder="Specific involvement details..."></textarea>
-                                </div>
-
-                                <!-- Evidence Upload -->
-                                <div>
-                                    <label class="block font-medium text-xs text-gray-700 mb-1">Evidence / File</label>
-                                    <input type="file" :name="'narrative_files[' + index + ']'" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"/>
-                                    <p class="text-[10px] text-gray-500 mt-1">PDF, JPG, PNG (Max 5MB)</p>
-                                </div>
-                            </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Narrative Report (Optional)</label>
+                        <div class="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:border-green-500 transition-colors cursor-pointer" onclick="document.getElementById('narrative_file').click()">
+                            <i class="fa-solid fa-cloud-arrow-up text-3xl text-gray-300 mb-2"></i>
+                            <p class="text-xs text-gray-400 mb-1" id="file-name">Click to upload scanned narrative picture</p>
+                            <input type="file" id="narrative_file" name="narrative_file" accept="image/*,.pdf" class="hidden" onchange="updateFileName(this)">
                         </div>
-                    </template>
+                    </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- Submit Actions -->
-            <div class="flex justify-end gap-3 pt-4">
-                <a href="{{ route('dashboard') }}" class="px-6 py-3 rounded-xl border border-gray-300 text-gray-700 font-bold text-sm hover:bg-gray-50 transition-colors">Cancel</a>
-                <button type="submit" class="px-6 py-3 rounded-xl bg-green-700 hover:bg-green-800 text-white font-bold text-sm shadow-lg hover:shadow-xl transition-all">Submit Incident Report</button>
+            <div class="flex justify-end">
+                <button type="submit" class="bg-green-700 hover:bg-green-800 text-white px-8 py-3 rounded-lg text-sm font-bold transition-all shadow-md flex items-center gap-2">
+                    <i class="fa-solid fa-file-circle-check"></i>
+                    Process Incident Log
+                </button>
             </div>
         </form>
     </div>
 </div>
 
 <script>
+    let selectedStudents = [];
+
+    function addStudentSimple() {
+        const select = document.getElementById('studentSelectSimple');
+        const studentId = select.value;
+        const studentText = select.options[select.selectedIndex].text;
+
+        if (!studentId) {
+            alert('Please select a student');
+            return;
+        }
+
+        if (selectedStudents.includes(studentId)) {
+            alert('Student already added');
+            return;
+        }
+
+        selectedStudents.push(studentId);
+        updateStudentsList();
+        updateHiddenInputs();
+        select.value = '';
+    }
+
+    function removeStudentSimple(studentId) {
+        selectedStudents = selectedStudents.filter((id) => id !== studentId);
+        updateStudentsList();
+        updateHiddenInputs();
+    }
+
+    function updateStudentsList() {
+        const container = document.getElementById('selectedStudentsList');
+        const select = document.getElementById('studentSelectSimple');
+
+        if (selectedStudents.length === 0) {
+            container.innerHTML = '<div class="text-center py-4 border-2 border-dashed border-gray-100 rounded-lg"><p class="text-xs text-gray-400 italic">No students added yet</p></div>';
+            return;
+        }
+
+        let html = '';
+        selectedStudents.forEach((studentId) => {
+            const option = select.querySelector(`option[value="${studentId}"]`);
+            const studentName = option ? option.text : 'Unknown';
+
+            html += `
+                <div class="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold bg-green-100 text-green-700">
+                            <i class="fa-solid fa-user-graduate"></i>
+                        </div>
+                        <div class="text-sm font-bold text-gray-800">${studentName}</div>
+                    </div>
+                    <button type="button" onclick="removeStudentSimple('${studentId}')" class="text-red-400 hover:text-red-600 transition-colors p-1">
+                        <i class="fa-solid fa-times"></i>
+                    </button>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    function updateHiddenInputs() {
+        const container = document.getElementById('studentsInputContainer');
+        container.innerHTML = '';
+
+        selectedStudents.forEach((studentId) => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'students[]';
+            input.value = studentId;
+            container.appendChild(input);
+        });
+    }
+
+    function initSelectedStudent() {
+        const form = document.getElementById('incidentForm');
+        const preset = form?.dataset.selectedStudent;
+        if (!preset) {
+            return;
+        }
+        selectedStudents = [preset];
+        updateStudentsList();
+        updateHiddenInputs();
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
-        const toggle = document.getElementById('full-custom-toggle');
-        const select = document.getElementById('violation_clause_id');
-        const fields = document.getElementById('full-custom-fields');
-        const flag = document.getElementById('full-custom-flag');
+        initSelectedStudent();
+        updateStudentsList();
+        updateHiddenInputs();
+    });
+</script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const toggle = document.getElementById('quick-custom-toggle');
+        const select = document.getElementById('quick-violation-select');
+        const fields = document.getElementById('quick-custom-fields');
+        const flag = document.getElementById('quick-custom-flag');
+        const categoryChoices = Array.from(document.querySelectorAll('.violation-category-choice'));
+        const picker = document.getElementById('quick-violation-picker');
+        const customWrapper = document.getElementById('quick-custom-wrapper');
+        const optgroups = Array.from(select?.querySelectorAll('optgroup') || []);
+        const customCategoryInput = document.getElementById('quick-custom-category-id');
+        const countWrapper = document.getElementById('quick-violation-count');
+        const optionWrapper = document.getElementById('quick-violation-suboption');
+        const optionSelect = document.getElementById('quick-violation-option');
+        const note = document.getElementById('quick-violation-note');
+        const offenseWrapper = document.getElementById('quick-violation-offense');
+        const offenseChoices = Array.from(offenseWrapper?.querySelectorAll('.offense-choice') || []);
+        let activeCategoryId = null;
+
+        function updateViolationNote() {
+            if (!note || !select) {
+                return;
+            }
+            const selectedOption = select.options[select.selectedIndex];
+            const message = selectedOption?.getAttribute('data-note');
+            if (message) {
+                note.textContent = message;
+                note.classList.remove('hidden');
+            } else {
+                note.textContent = '';
+                note.classList.add('hidden');
+            }
+        }
+
+        function resetCategoryUI() {
+            activeCategoryId = null;
+            if (picker) {
+                picker.classList.add('hidden');
+            }
+            if (customWrapper) {
+                customWrapper.classList.add('hidden');
+            }
+            if (toggle) {
+                toggle.checked = false;
+                toggle.disabled = true;
+            }
+            if (fields) {
+                fields.classList.add('hidden');
+            }
+            if (flag) {
+                flag.value = '0';
+            }
+            if (select) {
+                select.value = '';
+                Array.from(select.options).forEach((option) => {
+                    option.hidden = false;
+                });
+            }
+            if (note) {
+                note.textContent = '';
+                note.classList.add('hidden');
+            }
+            if (offenseWrapper) {
+                offenseWrapper.classList.add('hidden');
+                offenseChoices.forEach((input) => {
+                    input.checked = false;
+                });
+            }
+            if (countWrapper) {
+                countWrapper.classList.add('hidden');
+            }
+            if (optionWrapper) {
+                optionWrapper.classList.add('hidden');
+            }
+            if (optionSelect) {
+                optionSelect.value = '';
+            }
+            if (customCategoryInput) {
+                customCategoryInput.value = '';
+            }
+            optgroups.forEach((group) => {
+                group.hidden = false;
+                const originalLabel = group.getAttribute('data-original-label');
+                if (originalLabel) {
+                    group.label = originalLabel;
+                }
+            });
+        }
 
         function syncCustomState() {
             if (!toggle) {
                 return;
             }
+            if (!activeCategoryId) {
+                resetCategoryUI();
+                return;
+            }
             if (toggle.checked) {
-                select.value = '';
-                select.disabled = true;
-                fields.classList.remove('hidden');
-                flag.value = '1';
+                if (fields) {
+                    fields.classList.remove('hidden');
+                }
+                if (flag) {
+                    flag.value = '1';
+                }
+                if (picker) {
+                    picker.classList.add('hidden');
+                }
+                if (select) {
+                    select.value = '';
+                }
+                updateViolationNote();
+                if (offenseWrapper) {
+                    offenseWrapper.classList.add('hidden');
+                    offenseChoices.forEach((input) => {
+                        input.checked = false;
+                    });
+                }
+                if (optionWrapper) {
+                    optionWrapper.classList.add('hidden');
+                }
+                if (optionSelect) {
+                    optionSelect.value = '';
+                }
             } else {
-                select.disabled = false;
-                fields.classList.add('hidden');
-                flag.value = '0';
+                if (fields) {
+                    fields.classList.add('hidden');
+                }
+                if (flag) {
+                    flag.value = '0';
+                }
+                if (picker) {
+                    picker.classList.remove('hidden');
+                }
+                updateViolationNote();
             }
         }
 
-        toggle?.addEventListener('change', syncCustomState);
-        syncCustomState();
-    });
-</script>
-
-<script>
-    document.addEventListener('alpine:init', () => {
-        Alpine.data('studentManager', () => ({
-            students: [{ id: Date.now(), value: '' }],
-            init() {
-                const preset = this.$el.dataset.selectedStudent;
-                if (preset) {
-                    this.students[0].value = preset;
-                    this.$nextTick(() => {
-                        const firstSelect = this.$el.querySelector('select');
-                        if (firstSelect) {
-                            firstSelect.value = preset;
-                        }
-                    });
+        function handleCategoryChange(selected) {
+            categoryChoices.forEach((choice) => {
+                if (choice !== selected) {
+                    choice.checked = false;
                 }
-            },
-            addStudent() {
-                this.students.push({ id: Date.now(), value: '' });
-            },
-            removeStudent(index) {
-                this.students.splice(index, 1);
+            });
+
+            if (selected.checked) {
+                activeCategoryId = selected.getAttribute('data-category-id');
+                if (customCategoryInput) {
+                    customCategoryInput.value = activeCategoryId;
+                }
+                const options = Array.from(select.options);
+                options.forEach((option) => {
+                    if (!option.value) {
+                        option.hidden = false;
+                        return;
+                    }
+                    option.hidden = option.getAttribute('data-category-id') !== activeCategoryId;
+                });
+                optgroups.forEach((group) => {
+                    const groupCategoryId = group.getAttribute('data-category-id');
+                    const isActive = groupCategoryId === activeCategoryId;
+                    group.hidden = !isActive;
+                    if (isActive) {
+                        const displayLabel = selected.getAttribute('data-display-label');
+                        group.label = displayLabel || group.label;
+                    }
+                });
+                if (picker) {
+                    picker.classList.remove('hidden');
+                }
+                if (customWrapper) {
+                    customWrapper.classList.remove('hidden');
+                }
+                if (toggle) {
+                    toggle.disabled = false;
+                }
+                select.value = '';
+                if (countWrapper) {
+                    countWrapper.classList.add('hidden');
+                }
+                if (optionWrapper) {
+                    optionWrapper.classList.add('hidden');
+                }
+                if (optionSelect) {
+                    optionSelect.value = '';
+                }
+                if (customWrapper) {
+                    customWrapper.classList.remove('hidden');
+                }
+                updateViolationNote();
+                syncCustomState();
+            } else {
+                resetCategoryUI();
             }
-        }))
-    })
+        }
+
+        select?.addEventListener('change', () => {
+            const selectedOption = select.options[select.selectedIndex];
+            const requiresCount = selectedOption?.getAttribute('data-requires-count') === '1';
+            const hasOptions = selectedOption?.getAttribute('data-has-options') === '1';
+            const hasSelection = Boolean(selectedOption?.value);
+            if (countWrapper) {
+                countWrapper.classList.toggle('hidden', !requiresCount);
+            }
+            if (optionWrapper && optionSelect) {
+                optionSelect.value = '';
+                Array.from(optionSelect.options).forEach((option) => {
+                    if (!option.value) {
+                        option.hidden = false;
+                        return;
+                    }
+                    option.hidden = option.getAttribute('data-clause-id') !== selectedOption?.value;
+                });
+                optionWrapper.classList.toggle('hidden', !hasOptions);
+            }
+            if (offenseWrapper) {
+                offenseWrapper.classList.toggle('hidden', !hasSelection);
+            }
+            if (customWrapper) {
+                customWrapper.classList.toggle('hidden', hasSelection);
+            }
+            updateViolationNote();
+        });
+
+        select?.addEventListener('focus', () => {
+            if (!select) {
+                return;
+            }
+            const selectedOption = select.options[select.selectedIndex];
+            const hasSelection = Boolean(selectedOption?.value);
+            if (customWrapper) {
+                customWrapper.classList.toggle('hidden', hasSelection);
+            }
+        });
+
+        categoryChoices.forEach((choice) => {
+            choice.addEventListener('change', () => handleCategoryChange(choice));
+        });
+
+        offenseChoices.forEach((choice) => {
+            choice.addEventListener('change', () => {
+                if (!choice.checked) {
+                    return;
+                }
+                offenseChoices.forEach((other) => {
+                    if (other !== choice) {
+                        other.checked = false;
+                    }
+                });
+            });
+        });
+
+        toggle?.addEventListener('change', syncCustomState);
+        resetCategoryUI();
+        updateViolationNote();
+    });
 </script>
 @endsection
