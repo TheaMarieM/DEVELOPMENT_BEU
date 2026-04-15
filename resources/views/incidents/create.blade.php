@@ -161,7 +161,7 @@
                                             @endforeach
                                         @endforeach
                                     @endforeach
-                                </select>
+                            </select>
                             </div>
                         </div>
                         <input type="hidden" name="custom_violation_category_id" id="quick-custom-category-id" value="">
@@ -330,6 +330,13 @@
         const note = document.getElementById('quick-violation-note');
         const offenseWrapper = document.getElementById('quick-violation-offense');
         const offenseChoices = Array.from(offenseWrapper?.querySelectorAll('.offense-choice') || []);
+        const offenseLevelOrder = {
+            first: 1,
+            second: 2,
+            third: 3,
+            fourth: 4,
+            fifth: 5,
+        };
         let activeCategoryId = null;
 
         function updateViolationNote() {
@@ -345,6 +352,41 @@
                 note.textContent = '';
                 note.classList.add('hidden');
             }
+        }
+
+        function getMaxOffenseForCategory(categoryId) {
+            if (!categoryId) {
+                return null;
+            }
+            const choice = categoryChoices.find((item) => item.getAttribute('data-category-id') === categoryId);
+            const label = choice?.getAttribute('data-display-label') || choice?.getAttribute('data-category-name') || '';
+            const match = label.match(/Category\s+(\d+)/i);
+            const categoryNumber = match ? Number.parseInt(match[1], 10) : null;
+            if (categoryNumber === 1 || categoryNumber === 2) {
+                return 5;
+            }
+            if (categoryNumber === 3) {
+                return 4;
+            }
+            if (categoryNumber === 4) {
+                return 2;
+            }
+            return null;
+        }
+
+        function updateOffenseChoices(categoryId) {
+            const maxOffense = getMaxOffenseForCategory(categoryId);
+            offenseChoices.forEach((input) => {
+                const level = offenseLevelOrder[input.value] || 0;
+                const label = input.closest('label');
+                const allowed = !maxOffense || level <= maxOffense;
+                if (label) {
+                    label.classList.toggle('hidden', !allowed);
+                }
+                if (!allowed) {
+                    input.checked = false;
+                }
+            });
         }
 
         function resetCategoryUI() {
@@ -380,6 +422,7 @@
                 offenseChoices.forEach((input) => {
                     input.checked = false;
                 });
+                updateOffenseChoices(null);
             }
             if (countWrapper) {
                 countWrapper.classList.add('hidden');
@@ -416,9 +459,6 @@
                 }
                 if (flag) {
                     flag.value = '1';
-                }
-                if (picker) {
-                    picker.classList.add('hidden');
                 }
                 if (select) {
                     select.value = '';
@@ -513,6 +553,7 @@
             const requiresCount = selectedOption?.getAttribute('data-requires-count') === '1';
             const hasOptions = selectedOption?.getAttribute('data-has-options') === '1';
             const hasSelection = Boolean(selectedOption?.value);
+            const selectedCategoryId = selectedOption?.getAttribute('data-category-id');
             if (countWrapper) {
                 countWrapper.classList.toggle('hidden', !requiresCount);
             }
@@ -528,6 +569,11 @@
                 optionWrapper.classList.toggle('hidden', !hasOptions);
             }
             if (offenseWrapper) {
+                if (hasSelection) {
+                    updateOffenseChoices(selectedCategoryId);
+                } else {
+                    updateOffenseChoices(null);
+                }
                 offenseWrapper.classList.toggle('hidden', !hasSelection);
             }
             if (customWrapper) {
